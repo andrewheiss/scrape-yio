@@ -5,8 +5,12 @@
 # --------------
 import config
 import requests
+import json
+import re
 from bs4 import BeautifulSoup
 from random import choice
+
+from pprint import pprint
 
 
 # ---------
@@ -88,16 +92,86 @@ class YIO():
 
         # \ (•◡•) /  All logged in!  \ (•◡•) /
 
+def namify(heading_name):
+    """Convert to lowercase and replace all spaces with _s"""
+    return(heading_name.strip().replace(" ", "_").lower())
+
+def clean_name(org_name):
+    """Get rid of all extra whitespace and newlines"""
+    return(re.sub("\s+", " ", org_name.strip()))
+
+def extract_individual_org(page):
+    # Select just the main content section
+    soup = BeautifulSoup(page)
+    content = soup.select("#content")[0]
+
+    # Get rid of embedded Javascript
+    [tag.extract() for tag in content.findAll("script")]
+
+    # Get organization name
+    org_name = clean_name(content.find("h1").get_text())
+
+    # Find all H2s, since the page is structured like so:
+    #   <h2></h2>
+    #   <p></p>
+    #   <h2></h2>
+    #   <p></p>
+    #   etc.
+    headings = content.findAll("h2")
+
+    # Initialize dictionary to be saved as JSON
+    raw_data = {}
+    raw_data['org_name'] = org_name
+
+    # Loop through each heading, move along each sibling until coming to a H2
+    for heading in headings:
+        raw_section = []  # Track the parts of the section
+        for sibling in heading.next_siblings:
+            if sibling.name == "h2":
+                break  # Stop, since we're in a new section
+            else:
+                if sibling != "\n":
+                    raw_section.append(str(sibling))  # Add to section
+
+        # Save the section to the dictionary
+        raw_data[namify(heading.get_text())] = '\n'.join(raw_section)
+
+    # pprint(raw_data)
+
+    # Save as JSON, just for fun(?)
+    with open('json/{0}.json'.format(namify(org_name)), 'w') as f:
+        json.dump(raw_data, f)
+
+    # TODO: Clean up all the fields
+    # TODO: Save links to scrape later
+    # TODO: Get URL id
+    # TODO: Save information from table listing, like UIA Org ID, acronym, etc.
+
 
 # ------------
 # Run script
 # ------------
 def main():
     """Run actual script."""
-    yio = YIO()
+    # yio = YIO().s
 
     url = "http://ybio.brillonline.com.proxy.lib.duke.edu/ybio/v3/"
-    print(yio.s.get(url).text)
+    org1 = "http://ybio.brillonline.com.proxy.lib.duke.edu/s/or/en/1100065284"
+
+    # extract_individual_org(yio.get(org1).text)
+    temp = open('individual.html', 'r').read()
+    extract_individual_org(temp)
+
+    # Combine all the JSON files into one big file?
+    # import glob
+    # read_files = glob.glob("json/*.json")
+    # with open("merged_file.json", "w") as outfile:
+    #     outfile.write('[{}]'.format(
+    #         ','.join([open(f, "r").read() for f in read_files])))
+
+    # Do stuff with it in R...
+    # library(jsonlite)
+    # mydf <- fromJSON("~/Research/•Sandbox/scrape-yio/merged_file.json")
 
 
 if __name__ == '__main__':
