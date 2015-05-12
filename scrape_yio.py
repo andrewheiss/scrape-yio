@@ -14,6 +14,7 @@ from random import choice
 
 from pprint import pprint
 
+BASEURL = "http://ybio.brillonline.com.proxy.lib.duke.edu"
 
 # ---------
 # Classes
@@ -36,7 +37,7 @@ class YIO():
         """
 
         # URLs to be used
-        yio_url = "http://ybio.brillonline.com.proxy.lib.duke.edu/ybio"
+        yio_url = BASEURL + "/ybio"
         shib_url = "https://shib.oit.duke.edu/idp/profile/SAML2/POST/SSO"
         shib_login_url = "https://shib.oit.duke.edu/idp/authn/external"
 
@@ -94,11 +95,12 @@ class YIO():
 
         # \ (•◡•) /  All logged in!  \ (•◡•) /
 
+
 def namify(heading_name):
     """Convert to lowercase and replace all spaces with _s"""
     return(heading_name.strip().replace(" ", "_").lower())
 
-def clean_name(org_name):
+def clean_text(org_name):
     """Get rid of all extra whitespace and newlines"""
     return(re.sub("\s+", " ", org_name.strip()))
 
@@ -111,7 +113,7 @@ def extract_individual_org(page):
     [tag.extract() for tag in content.findAll("script")]
 
     # Get organization name
-    org_name = clean_name(content.find("h1").get_text())
+    org_name = clean_text(content.find("h1").get_text())
 
     # Find all H2s, since the page is structured like so:
     #   <h2></h2>
@@ -150,14 +152,67 @@ def extract_individual_org(page):
     # TODO: Save information from table listing, like UIA Org ID, acronym, etc.
 
 
+def parse_subject_page(session, url, subject):
+    page = session.get(url).text
+    soup = BeautifulSoup(page)
+    table = soup.select(".view-yearbook-working .views-table")[0]
+
+    # Loop through each row in the table
+    for org in table.select("tr")[1:]:
+        org_details = extract_from_row(org)
+        print(org_details)
+
+    # TODO: Do something with org_details
+
+    # Check if there's a next page
+    pager = soup.select(".view-yearbook-working .pager")[0]
+    next_page_raw = pager.select(".pager-next")
+
+    if len(next_page_raw) > 0:
+        next_page = BASEURL + next_page_raw[0].select("a")[0]['href']
+    else:
+        next_page = None
+
+    # Recursively get and parse the next page
+    if next_page is not None:
+        parse_subject_page(session, next_page, subject)
+
+
+def extract_from_row(org):
+    org_details = {}
+
+    org_raw = org.select("td")
+
+    # Parse name and URL information
+    org_details['org_name'] = clean_text(org_raw[0].get_text())
+    org_details['org_url'] = clean_text(org_raw[0].select("a")[0]['href'])
+    org_details['org_url_id'] = re.search(r"/(\d+)$",
+                                          org_details['org_url']).group(1)
+
+    # Get all other details
+    org_details['org_acronym_t'] = clean_text(org_raw[1].get_text())
+    org_details['org_founded_t'] = clean_text(org_raw[2].get_text())
+    org_details['org_city_hq_t'] = clean_text(org_raw[3].get_text())
+    org_details['org_country_hq_t'] = clean_text(org_raw[4].get_text())
+    org_details['org_type_i_t'] = clean_text(org_raw[5].get_text())
+    org_details['org_type_ii_t'] = clean_text(org_raw[6].get_text())
+    org_details['org_type_iii_t'] = clean_text(org_raw[7].get_text())
+    org_details['org_uia_id_t'] = clean_text(org_raw[8].get_text())
+
+    # Convert blank cells to none
+    for key, value in org_details.items():
+        if value == '':
+            org_details[key] = None
+
+    return(org_details)
+
+
 # ------------
 # Run script
 # ------------
 def main():
     """Run actual script."""
 
-    url = "http://ybio.brillonline.com.proxy.lib.duke.edu/ybio/v3/"
-    org1 = "http://ybio.brillonline.com.proxy.lib.duke.edu/s/or/en/1100065284"
     # If there's a pre-logged-in session, use it
     if os.path.isfile("yio_session"):
         with open("yio_session", 'rb') as f:
@@ -171,9 +226,7 @@ def main():
     # First page of the subject
     subject_page = "http://ybio.brillonline.com.proxy.lib.duke.edu/ybio/?wcodes=Censorship&wcodes_op=contains"
 
-    # extract_individual_org(yio.get(org1).text)
-    temp = open('individual.html', 'r').read()
-    extract_individual_org(temp)
+    parse_subject_page(yio, subject_page, "Censorship")
 
     # Combine all the JSON files into one big file?
     # import glob
