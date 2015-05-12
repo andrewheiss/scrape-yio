@@ -105,7 +105,21 @@ class DB():
         self.c = self.conn.cursor()
 
         # Turn on foreign keys
-        self.c.execute("""PRAGMA foreign_keys = ON""")
+        self.c.execute("PRAGMA foreign_keys = ON")
+
+        # If the database is brand new, set up the structure
+        table_info = self.c.execute("PRAGMA table_info(organizations);").fetchall()
+
+        if len(table_info) == 0:
+            self.create()
+
+    def create(self):
+        # Read the schema file and separate into a list of individual commands
+        create_command = open("schema.sql", "r").read().split(";")
+
+        # Execute each command
+        for command in create_command:
+            self.c.execute(command)
 
     def insert_org_basic(self, org_details):
         var_names = ", ".join(org_details.keys())
