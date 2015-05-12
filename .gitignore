@@ -5,3 +5,6 @@ yio.pickle
 
 # Temporary files (like test HTML files)
 temp/*
+
+# Temporarily don't track data
+data/*

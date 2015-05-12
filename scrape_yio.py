@@ -9,6 +9,7 @@ import json
 import re
 import pickle
 import os
+import sqlite3
 from bs4 import BeautifulSoup
 from random import choice
 
@@ -96,13 +97,59 @@ class YIO():
         # \ (•◡•) /  All logged in!  \ (•◡•) /
 
 
+class DB():
+    """Functions to interface with SQLite database."""
+    def __init__(self, database):
+        self.conn = sqlite3.connect(database,
+                                    detect_types=sqlite3.PARSE_DECLTYPES)
+        self.c = self.conn.cursor()
+
+        # Turn on foreign keys
+        self.c.execute("""PRAGMA foreign_keys = ON""")
+
+    def insert_org_basic(self, org_details):
+        var_names = ", ".join(org_details.keys())
+        placeholders = ", ".join([":" + key for key in org_details.keys()])
+
+        insert_string = ("INSERT OR IGNORE INTO organizations ({0}) VALUES ({1})"
+                         .format(var_names, placeholders))
+        self.c.execute(insert_string, org_details)
+
+        self.conn.commit()
+
+    def close(self):
+        self.c.close()
+        self.conn.close()
+
+    def add_columns(self, colnames):
+        # Make the list a set for cool set math functions
+        colnames = set(colnames)
+
+        # Get names of existing columns
+        existing_cols_raw = (self.c
+                             .execute("PRAGMA table_info(organizations);")
+                             .fetchall())
+        existing_cols = set([col[1] for col in existing_cols_raw])
+
+        # Determine which columns don't exist yet
+        new_cols = colnames.difference(existing_cols)
+
+        # Add new columns if needed
+        if len(new_cols) > 0:
+            for col in new_cols:
+                self.c.execute("ALTER TABLE organizations ADD COLUMN {0} text"
+                               .format(col))
+
+
 def namify(heading_name):
     """Convert to lowercase and replace all spaces with _s"""
     return(heading_name.strip().replace(" ", "_").lower())
 
+
 def clean_text(org_name):
     """Get rid of all extra whitespace and newlines"""
     return(re.sub("\s+", " ", org_name.strip()))
+
 
 def extract_individual_org(page):
     # Select just the main content section
@@ -149,20 +196,21 @@ def extract_individual_org(page):
     # TODO: Clean up all the fields
     # TODO: Save links to scrape later
     # TODO: Get URL id
-    # TODO: Save information from table listing, like UIA Org ID, acronym, etc.
+    # colnames = ["testing", "testing2", "testing3", "testing4"]
+    # db.add_columns(colnames)
 
 
-def parse_subject_page(session, url, subject):
+def parse_subject_page(session, url, subject, db):
     page = session.get(url).text
+    # page = open("temp/list.html", "r")
     soup = BeautifulSoup(page)
     table = soup.select(".view-yearbook-working .views-table")[0]
 
-    # Loop through each row in the table
+    # Loop through each row in the table and add it to the database
     for org in table.select("tr")[1:]:
         org_details = extract_from_row(org)
-        print(org_details)
-
-    # TODO: Do something with org_details
+        org_details['org_subject_t'] = subject
+        db.insert_org_basic(org_details)
 
     # Check if there's a next page
     pager = soup.select(".view-yearbook-working .pager")[0]
@@ -175,7 +223,7 @@ def parse_subject_page(session, url, subject):
 
     # Recursively get and parse the next page
     if next_page is not None:
-        parse_subject_page(session, next_page, subject)
+        parse_subject_page(session, next_page, subject, db)
 
 
 def extract_from_row(org):
@@ -213,6 +261,9 @@ def extract_from_row(org):
 def main():
     """Run actual script."""
 
+    # Open database
+    db = DB("data/yio.db")
+
     # If there's a pre-logged-in session, use it
     if os.path.isfile("yio.pickle"):
         with open("yio.pickle", 'rb') as f:
@@ -226,7 +277,10 @@ def main():
     # First page of the subject
     subject_page = "http://ybio.brillonline.com.proxy.lib.duke.edu/ybio/?wcodes=Censorship&wcodes_op=contains"
 
-    parse_subject_page(yio, subject_page, "Censorship")
+    parse_subject_page(yio, subject_page, "Censorship", db)
+
+    # Close everything up
+    db.close()
 
     # Combine all the JSON files into one big file?
     # import glob
