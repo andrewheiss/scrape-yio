@@ -214,13 +214,13 @@ def main():
     """Run actual script."""
 
     # If there's a pre-logged-in session, use it
-    if os.path.isfile("yio_session"):
-        with open("yio_session", 'rb') as f:
+    if os.path.isfile("yio.pickle"):
+        with open("yio.pickle", 'rb') as f:
             yio = pickle.load(f)
     # Otherwise log in and save the session to file
     else:
         yio = YIO().s
-        with open('yio_session', 'wb') as f:
+        with open('yio.pickle', 'wb') as f:
             pickle.dump(yio, f)
 
     # First page of the subject

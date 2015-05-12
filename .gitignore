@@ -1,3 +1,4 @@
 # Configuration file
 config.py
 __pycache__/*
+yio.pickle
