@@ -7,6 +7,8 @@ import config
 import requests
 import json
 import re
+import pickle
+import os
 from bs4 import BeautifulSoup
 from random import choice
 
@@ -153,10 +155,21 @@ def extract_individual_org(page):
 # ------------
 def main():
     """Run actual script."""
-    # yio = YIO().s
 
     url = "http://ybio.brillonline.com.proxy.lib.duke.edu/ybio/v3/"
     org1 = "http://ybio.brillonline.com.proxy.lib.duke.edu/s/or/en/1100065284"
+    # If there's a pre-logged-in session, use it
+    if os.path.isfile("yio_session"):
+        with open("yio_session", 'rb') as f:
+            yio = pickle.load(f)
+    # Otherwise log in and save the session to file
+    else:
+        yio = YIO().s
+        with open('yio_session', 'wb') as f:
+            pickle.dump(yio, f)
+
+    # First page of the subject
+    subject_page = "http://ybio.brillonline.com.proxy.lib.duke.edu/ybio/?wcodes=Censorship&wcodes_op=contains"
 
     # extract_individual_org(yio.get(org1).text)
     temp = open('individual.html', 'r').read()
