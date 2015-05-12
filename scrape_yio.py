@@ -202,7 +202,6 @@ def extract_individual_org(page):
 
 def parse_subject_page(session, url, subject, db):
     page = session.get(url).text
-    # page = open("temp/list.html", "r")
     soup = BeautifulSoup(page)
     table = soup.select(".view-yearbook-working .views-table")[0]
 
@@ -275,9 +274,11 @@ def main():
             pickle.dump(yio, f)
 
     # First page of the subject
-    subject_page = "http://ybio.brillonline.com.proxy.lib.duke.edu/ybio/?wcodes=Censorship&wcodes_op=contains"
+    # TODO: Make this some sort of data structure with each of the subjects/urls to be scraped
+    censorship = ("Censorship",
+                  "http://ybio.brillonline.com.proxy.lib.duke.edu/ybio/?wcodes=Censorship&wcodes_op=contains")
 
-    parse_subject_page(yio, subject_page, "Censorship", db)
+    parse_subject_page(yio, censorship[1], censorship[0], db)
 
     # Close everything up
     db.close()
