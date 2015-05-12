@@ -2,3 +2,6 @@
 config.py
 __pycache__/*
 yio.pickle
+
+# Temporary files (like test HTML files)
+temp/*
