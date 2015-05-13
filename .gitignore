@@ -1,7 +1,10 @@
 # Configuration file
 config.py
 __pycache__/*
-yio.pickle
+
+# Miscellaneous files
+*.pickle
+*.log
 
 # Temporary files (like test HTML files)
 temp/*
