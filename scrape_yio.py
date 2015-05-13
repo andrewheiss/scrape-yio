@@ -13,6 +13,7 @@ import sqlite3
 import logging
 from bs4 import BeautifulSoup
 from random import choice
+from time import sleep
 
 from pprint import pprint
 
@@ -258,6 +259,10 @@ def parse_subject_page(session, url, subject, db):
     # Recursively get and parse the next page
     if next_page is not None:
         logging.info("There's another page. Parse it.")
+
+        wait = choice(config.wait_time)
+        logging.info("Waiting for {0} seconds before moving on".format(wait))
+        sleep(wait)
         parse_subject_page(session, next_page, subject, db)
 
 
@@ -314,10 +319,19 @@ def main():
 
     # First page of the subject
     # TODO: Make this some sort of data structure with each of the subjects/urls to be scraped
-    censorship = ("Censorship",
-                  "http://ybio.brillonline.com.proxy.lib.duke.edu/ybio/?wcodes=Censorship&wcodes_op=contains")
+    subjects = [
+        ("Censorship", BASEURL +
+            "/ybio/?wcodes=Censorship&wcodes_op=contains"),
+        ("Journalism", BASEURL +
+            "/ybio/?wcodes=Journalism&wcodes_op=contains"),
+        ("Media", BASEURL +
+            "/ybio/?wcodes=Media&wcodes_op=contains")
+    ]
 
-    parse_subject_page(yio, censorship[1], censorship[0], db)
+    for subject in subjects[:1]:
+        logging.info("Beginning to parse the {0} subject ({1})"
+                     .format(subject[0], subject[1]))
+        parse_subject_page(yio, subject[1], subject[0], db)
 
     # Close everything up
     db.close()
