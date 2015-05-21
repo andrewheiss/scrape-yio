@@ -4,14 +4,14 @@
 # Load modules
 # --------------
 import config
-import requests
 import json
-import re
-import pickle
+import logging
 import os
+import pickle
+import re
+import requests
 import sqlite3
 import sys
-import logging
 from bs4 import BeautifulSoup
 from random import choice
 from time import sleep
