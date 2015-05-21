@@ -20,6 +20,7 @@ from pprint import pprint
 
 BASEURL = "http://ybio.brillonline.com.proxy.lib.duke.edu"
 
+
 # ------------
 # Set up log
 # ------------
@@ -30,6 +31,7 @@ formatter = logging.Formatter("%(levelname)s %(asctime)s: %(message)s")
 
 # Create handlers
 to_console = logging.StreamHandler()
+to_console.setLevel(logging.WARNING)
 to_file = logging.FileHandler("yio.log", mode="a")
 
 # Add formatting
