@@ -13,6 +13,7 @@ import requests
 import sqlite3
 import sys
 from bs4 import BeautifulSoup
+from collections import namedtuple
 from random import choice
 from time import sleep
 
@@ -356,19 +357,18 @@ def main():
         logger.info("Saving session to file for future use.")
 
     # First page of the subject
+    subject_page = namedtuple('SubjectPage', ['name', 'url'])
     subjects = [
-        ("Censorship", BASEURL +
-            "/ybio/?wcodes=Censorship&wcodes_op=contains"),
-        ("Journalism", BASEURL +
-            "/ybio/?wcodes=Journalism&wcodes_op=contains"),
-        ("Media", BASEURL +
-            "/ybio/?wcodes=Media&wcodes_op=contains")
+        subject_page(name="Censorship", url=subject_url("Censorship")),
+        subject_page(name="Journalism", url=subject_url("Journalism")),
+        subject_page(name="Media", url=subject_url("Media")),
+        subject_page(name="Education", url=subject_url("Education"))
     ]
 
     for subject in subjects[:1]:
         logger.info("Beginning to parse the {0} subject ({1})"
-                    .format(subject[0], subject[1]))
-        parse_subject_page(yio, subject[1], subject[0], db)
+                    .format(subject.name, subject.url))
+        # parse_subject_page(yio, subject.url, subject.name, db)
 
     # Close everything up
     db.close()
