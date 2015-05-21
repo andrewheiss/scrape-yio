@@ -10,6 +10,7 @@ import re
 import pickle
 import os
 import sqlite3
+import sys
 import logging
 from bs4 import BeautifulSoup
 from random import choice
@@ -19,9 +20,38 @@ from pprint import pprint
 
 BASEURL = "http://ybio.brillonline.com.proxy.lib.duke.edu"
 
+# ------------
 # Set up log
-logging.basicConfig(filename='yio.log', level=logging.INFO,
-                    format="%(levelname)s %(asctime)s: %(message)s")
+# ------------
+# Configure logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+formatter = logging.Formatter("%(levelname)s %(asctime)s: %(message)s")
+
+# Create handlers
+to_console = logging.StreamHandler()
+to_file = logging.FileHandler("yio.log", mode="a")
+
+# Add formatting
+to_console.setFormatter(formatter)
+to_file.setFormatter(formatter)
+
+# Add to logger
+logger.addHandler(to_console)
+logger.addHandler(to_file)
+
+# Function to redirect exceptions to the log
+# Via http://stackoverflow.com/a/16993115/120898
+def handle_exception(exc_type, exc_value, exc_traceback):
+    # Ignore KeyboardInterrupt so a console Python program can exit with Ctrl + C
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+
+    logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+
+sys.excepthook = handle_exception
+
 
 # ---------
 # Classes
@@ -117,7 +147,7 @@ class DB():
         table_info = self.c.execute("PRAGMA table_info(organizations);").fetchall()
 
         if len(table_info) == 0:
-            logging.info("Creating new database.")
+            logger.info("Creating new database.")
             self.create()
 
     def create(self):
@@ -137,13 +167,13 @@ class DB():
         self.c.execute(insert_string, org_details)
 
         if self.c.rowcount == 1:
-            logging.info("Inserted {0} ({1}) into database."
-                         .format(org_details['org_name'],
-                                 org_details['org_url_id']))
+            logger.info("Inserted {0} ({1}) into database."
+                        .format(org_details['org_name'],
+                                org_details['org_url_id']))
         else:
-            logging.info("Skipping {0} ({1}). Already in database."
-                         .format(org_details['org_name'],
-                                 org_details['org_url_id']))
+            logger.info("Skipping {0} ({1}). Already in database."
+                        .format(org_details['org_name'],
+                                org_details['org_url_id']))
 
         self.conn.commit()
 
@@ -231,7 +261,7 @@ def extract_individual_org(page):
 
 
 def parse_subject_page(session, url, subject, db):
-    logging.info("Parsing organizations listed at {0}".format(url))
+    logger.info("Parsing organizations listed at {0}".format(url))
     page = session.get(url).text
     soup = BeautifulSoup(page)
     table = soup.select(".view-yearbook-working .views-table")[0]
@@ -241,9 +271,9 @@ def parse_subject_page(session, url, subject, db):
         org_details = extract_from_row(org)
         org_details['org_subject_t'] = subject
 
-        logging.info("Dealing with {0} ({1})."
-                     .format(org_details['org_name'],
-                             org_details['org_url_id']))
+        logger.info("Dealing with {0} ({1})."
+                    .format(org_details['org_name'],
+                            org_details['org_url_id']))
 
         db.insert_org_basic(org_details)
 
@@ -258,10 +288,10 @@ def parse_subject_page(session, url, subject, db):
 
     # Recursively get and parse the next page
     if next_page is not None:
-        logging.info("There's another page. Parse it.")
+        logger.info("There's another page. Parse it.")
 
         wait = choice(config.wait_time)
-        logging.info("Waiting for {0} seconds before moving on".format(wait))
+        logger.info("Waiting for {0} seconds before moving on".format(wait))
         sleep(wait)
         parse_subject_page(session, next_page, subject, db)
 
@@ -308,17 +338,16 @@ def main():
     if os.path.isfile("yio.pickle"):
         with open("yio.pickle", 'rb') as f:
             yio = pickle.load(f)
-        logging.info("No need to log in---using existing session.")
+        logger.info("No need to log in---using existing session.")
     # Otherwise log in and save the session to file
     else:
-        logging.info("Logging in to YIO through Duke's library.")
+        logger.info("Logging in to YIO through Duke's library.")
         yio = YIO().s
         with open('yio.pickle', 'wb') as f:
             pickle.dump(yio, f)
-        logging.info("Saving session to file for future use.")
+        logger.info("Saving session to file for future use.")
 
     # First page of the subject
-    # TODO: Make this some sort of data structure with each of the subjects/urls to be scraped
     subjects = [
         ("Censorship", BASEURL +
             "/ybio/?wcodes=Censorship&wcodes_op=contains"),
@@ -329,8 +358,8 @@ def main():
     ]
 
     for subject in subjects[:1]:
-        logging.info("Beginning to parse the {0} subject ({1})"
-                     .format(subject[0], subject[1]))
+        logger.info("Beginning to parse the {0} subject ({1})"
+                    .format(subject[0], subject[1]))
         parse_subject_page(yio, subject[1], subject[0], db)
 
     # Close everything up
