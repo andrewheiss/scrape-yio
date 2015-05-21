@@ -368,7 +368,7 @@ def main():
     for subject in subjects[:1]:
         logger.info("Beginning to parse the {0} subject ({1})"
                     .format(subject.name, subject.url))
-        # parse_subject_page(yio, subject.url, subject.name, db)
+        parse_subject_page(yio, subject.url, subject.name, db)
 
     # Close everything up
     db.close()
