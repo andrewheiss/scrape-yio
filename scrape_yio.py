@@ -213,6 +213,12 @@ def clean_text(org_name):
     return(re.sub("\s+", " ", org_name.strip()))
 
 
+def subject_url(subject, page=None):
+    """Construct URL for subject page to be scraped"""
+    url = "/ybio/?wcodes={0}&wcodes_op=contains".format(subject)
+    return(BASEURL + url)
+
+
 def extract_individual_org(page):
     # Select just the main content section
     soup = BeautifulSoup(page)
