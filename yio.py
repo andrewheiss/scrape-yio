@@ -108,8 +108,8 @@ class YIO():
 
 class DB():
     """Functions to interface with SQLite database."""
-    def __init__(self, database):
-        self.conn = sqlite3.connect(database,
+    def __init__(self):
+        self.conn = sqlite3.connect(config.DB_FILE,
                                     detect_types=sqlite3.PARSE_DECLTYPES)
         self.c = self.conn.cursor()
 

@@ -162,10 +162,8 @@ def extract_from_row(org):
 def main():
     """Run actual script."""
 
-    # Open database
-    db = DB(config.DB_FILE)
-
-    # Log in and start session
+    # Open database and log into YIO
+    db = DB()
     yio = YIO().s
 
     # First page of the subject
