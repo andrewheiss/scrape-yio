@@ -148,22 +148,19 @@ class DB():
         for command in create_command:
             self.c.execute(command)
 
-    def insert_org_basic(self, org_details):
-        var_names = ", ".join(org_details.keys())
-        placeholders = ", ".join([":" + key for key in org_details.keys()])
+    def insert_dict(self, row_dict, table):
+        var_names = ", ".join(row_dict.keys())
+        placeholders = ", ".join([":" + key for key in row_dict.keys()])
 
-        insert_string = ("INSERT OR IGNORE INTO organizations ({0}) VALUES ({1})"
-                         .format(var_names, placeholders))
-        self.c.execute(insert_string, org_details)
+        insert_string = ("INSERT OR IGNORE INTO {2} ({0}) VALUES ({1})"
+                         .format(var_names, placeholders, table))
+
+        self.c.execute(insert_string, row_dict)
 
         if self.c.rowcount == 1:
-            logger.info("Inserted {0} ({1}) into database."
-                        .format(org_details['org_name'],
-                                org_details['org_url_id']))
+            logger.info("Inserted row into database.")
         else:
-            logger.info("Skipping {0} ({1}). Already in database."
-                        .format(org_details['org_name'],
-                                org_details['org_url_id']))
+            logger.info("Skipping. Already in database.")
 
         self.conn.commit()
 
