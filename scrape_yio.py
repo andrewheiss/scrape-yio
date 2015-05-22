@@ -8,7 +8,6 @@ import config
 from yio import YIO, DB
 
 # Pip-installed modules
-import json
 import logging
 import re
 
@@ -81,8 +80,8 @@ def extract_individual_org(page):
     # pprint(raw_data)
 
     # Save as JSON, just for fun(?)
-    with open('json/{0}.json'.format(namify(org_name)), 'w') as f:
-        json.dump(raw_data, f)
+    # with open('json/{0}.json'.format(namify(org_name)), 'w') as f:
+    #     json.dump(raw_data, f)
 
     # TODO: Clean up all the fields
     # TODO: Save links to scrape later
@@ -182,17 +181,6 @@ def main():
 
     # Close everything up
     db.close()
-
-    # Combine all the JSON files into one big file?
-    # import glob
-    # read_files = glob.glob("json/*.json")
-    # with open("merged_file.json", "w") as outfile:
-    #     outfile.write('[{}]'.format(
-    #         ','.join([open(f, "r").read() for f in read_files])))
-
-    # Do stuff with it in R...
-    # library(jsonlite)
-    # mydf <- fromJSON("~/Research/•Sandbox/scrape-yio/merged_file.json")
 
 
 if __name__ == '__main__':
