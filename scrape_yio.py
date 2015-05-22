@@ -10,8 +10,6 @@ from yio import YIO, DB
 # Pip-installed modules
 import json
 import logging
-import os
-import pickle
 import re
 
 # Just parts of modules
@@ -167,18 +165,8 @@ def main():
     # Open database
     db = DB(config.DB_FILE)
 
-    # If there's a pre-logged-in session, use it
-    if os.path.isfile("yio1.pickle"):
-        with open("yio.pickle", 'rb') as f:
-            yio = pickle.load(f)
-        logger.info("No need to log in---using existing session.")
-    # Otherwise log in and save the session to file
-    else:
-        logger.info("Logging in to YIO through Duke's library.")
-        yio = YIO("http://ybio.brillonline.com.proxy.lib.duke.edu").s
-        with open('yio.pickle', 'wb') as f:
-            pickle.dump(yio, f)
-        logger.info("Saving session to file for future use.")
+    # Log in and start session
+    yio = YIO().s
 
     # First page of the subject
     subject_page = namedtuple('SubjectPage', ['name', 'url'])

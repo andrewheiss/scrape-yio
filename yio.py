@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 # Modules
 import config
+import logging
+import os
+import pickle
 import requests
 import sqlite3
-import logging
 from bs4 import BeautifulSoup
 from random import choice
 
@@ -17,11 +19,26 @@ class YIO():
     """Connect to the Yearbook of International Organizations through
     Duke's Shibboleth authentication system.
     """
-    def __init__(self, base_url):
-        self.base_url = base_url
-        self.s = requests.session()
-        self.s.headers.update({"User-Agent": choice(config.user_agents)})
-        self.login_through_duke()
+    def __init__(self):
+        config.BASE_URL
+
+        # If there's a pre-logged-in session, use it.
+        # You can't pickle self and reload it again,
+        # but you can pickle self.__dict__ and self.update it
+        if os.path.isfile("yio.pickle"):
+            with open("yio.pickle", 'rb') as f:
+                self.__dict__.update(pickle.load(f))
+            logger.info("No need to log in---using existing session.")
+        # Otherwise log in and save the session to file
+        else:
+            logger.info("Logging in to YIO through Duke's library.")
+            self.s = requests.session()
+            self.s.headers.update({"User-Agent": choice(config.user_agents)})
+            self.login_through_duke()
+
+            with open('yio.pickle', 'wb') as f:
+                pickle.dump(self.__dict__, f)
+            logger.info("Saving session to file for future use.")
 
     def login_through_duke(self):
         """Bounce between all the different authentication layers to log into
@@ -31,7 +48,7 @@ class YIO():
         """
 
         # URLs to be used
-        yio_url = self.base_url + "/ybio"
+        yio_url = config.BASE_URL + "/ybio"
         shib_url = "https://shib.oit.duke.edu/idp/profile/SAML2/POST/SSO"
         shib_login_url = "https://shib.oit.duke.edu/idp/authn/external"
 
