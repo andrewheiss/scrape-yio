@@ -41,7 +41,7 @@ def subject_url(subject, page=None):
 
 
 # Scraping functions
-def extract_individual_org(session, id_org, url, db):
+def parse_individual_org(session, id_org, url, db):
     logger.info("Getting organization details from {0}".format(url))
     page = session.get(url).text
     soup = BeautifulSoup(page)
@@ -197,7 +197,7 @@ def scrape_org():
 
     print(orgs[0])
 
-    # extract_individual_org()
+    # parse_individual_org()
     # colnames = ["testing", "testing2", "testing3", "testing4"]
     # db.add_raw_columns(colnames)
 
