@@ -108,7 +108,7 @@ class YIO():
 
 class DB():
     """Functions to interface with SQLite database."""
-    def __init__(self, factory=None):
+    def __init__(self):
         self.conn = sqlite3.connect(config.DB_FILE,
                                     detect_types=sqlite3.PARSE_DECLTYPES)
         self.c = self.conn.cursor()
@@ -123,18 +123,18 @@ class DB():
             logger.info("Creating new database.")
             self.create()
 
+    def add_factory(self, factory):
         # Closure wizardry: http://stackoverflow.com/a/4020443/120898
-        if factory:
-            logger.info("Adding a row factory")
+        logger.info("Adding a row factory")
 
-            def build_factory(fac):
-                def namedtuple_factory(cursor, row):
-                    return fac(*row)
-                return namedtuple_factory
+        def build_factory(fac):
+            def namedtuple_factory(cursor, row):
+                return fac(*row)
+            return namedtuple_factory
 
-            # Add the factory and update the cursor
-            self.conn.row_factory = build_factory(factory)
-            self.c = self.conn.cursor()
+        # Add the factory and update the cursor
+        self.conn.row_factory = build_factory(factory)
+        self.c = self.conn.cursor()
 
     def create(self):
         # Read the schema file and separate into a list of individual commands

@@ -189,7 +189,10 @@ def scrape_subjects():
 def scrape_org():
     OrgPage = namedtuple('OrgPage', ['id_org', 'name', 'url'])
 
-    db = DB(factory=OrgPage)
+    # Open database and log into YIO
+    db = DB()
+    db.add_factory(factory=OrgPage)
+    yio = YIO().s
 
     db.c.execute("SELECT id_org, org_name, org_url FROM organizations")
 
