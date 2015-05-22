@@ -154,14 +154,34 @@ class DB():
         self.c.close()
         self.conn.close()
 
-    def add_columns(self, colnames):
+    def add_raw_columns(self, colnames):
         # Make the list a set for cool set math functions
         colnames = set(colnames)
 
         # Get names of existing columns
         existing_cols_raw = (self.c
-                             .execute("PRAGMA table_info(organizations);")
+                             .execute("PRAGMA table_info(organizations_raw);")
                              .fetchall())
+
+        if len(existing_cols_raw) == 0:
+            start_raw_table = """
+                PRAGMA foreign_keys = ON;
+
+                CREATE TABLE organizations_raw (
+                  fk_org integer NOT NULL,
+                  FOREIGN KEY (fk_org) REFERENCES organizations (id_org) ON DELETE CASCADE,
+                  PRIMARY KEY(fk_org)
+                );"""
+
+            # Create new table
+            for command in start_raw_table.split(";"):
+                self.c.execute(command)
+
+            # Get names of existing columns again
+            existing_cols_raw = (self.c
+                                 .execute("PRAGMA table_info(organizations_raw);")
+                                 .fetchall())
+
         existing_cols = set([col[1] for col in existing_cols_raw])
 
         # Determine which columns don't exist yet
@@ -170,5 +190,5 @@ class DB():
         # Add new columns if needed
         if len(new_cols) > 0:
             for col in new_cols:
-                self.c.execute("ALTER TABLE organizations ADD COLUMN {0} text"
+                self.c.execute("ALTER TABLE organizations_raw ADD COLUMN {0} text"
                                .format(col))
