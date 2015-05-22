@@ -41,9 +41,12 @@ def subject_url(subject, page=None):
 
 
 # Scraping functions
-def extract_individual_org(page):
-    # Select just the main content section
+def extract_individual_org(session, id_org, url, db):
+    logger.info("Getting organization details from {0}".format(url))
+    page = session.get(url).text
     soup = BeautifulSoup(page)
+
+    # Select just the main content section
     content = soup.select("#content")[0]
 
     # Get rid of embedded Javascript
@@ -77,7 +80,7 @@ def extract_individual_org(page):
         # Save the section to the dictionary
         raw_data[namify(heading.get_text())] = '\n'.join(raw_section)
 
-    # pprint(raw_data)
+    pprint(raw_data)
 
     # Save as JSON, just for fun(?)
     # with open('json/{0}.json'.format(namify(org_name)), 'w') as f:
