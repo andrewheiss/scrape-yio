@@ -204,7 +204,7 @@ def scrape_org():
         wait = choice(config.wait_time)
         logger.info("Waiting for {0} seconds before moving on".format(wait))
         sleep(wait)
-        logger.info("Parsing details for {0}".format(org.name))
+        logger.info("Parsing details for ({1}) {0}".format(org.name, org.id_org))
         parse_individual_org(yio, org, db)
 
 
