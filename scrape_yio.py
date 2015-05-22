@@ -3,7 +3,11 @@
 # --------------
 # Load modules
 # --------------
+# My modules
 import config
+from yio import YIO, DB
+
+# Pip-installed modules
 import json
 import logging
 import os
@@ -12,6 +16,8 @@ import re
 import requests
 import sqlite3
 import sys
+
+# Just parts of modules
 from bs4 import BeautifulSoup
 from collections import namedtuple
 from random import choice
@@ -19,191 +25,11 @@ from time import sleep
 
 from pprint import pprint
 
-BASEURL = "http://ybio.brillonline.com.proxy.lib.duke.edu"
-
-
-# ------------
-# Set up log
-# ------------
-# Configure logger
+# Start log
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-formatter = logging.Formatter("%(levelname)s %(asctime)s: %(message)s")
-
-# Create handlers
-to_console = logging.StreamHandler()
-to_console.setLevel(logging.WARNING)
-to_file = logging.FileHandler("yio.log", mode="a")
-
-# Add formatting
-to_console.setFormatter(formatter)
-to_file.setFormatter(formatter)
-
-# Add to logger
-logger.addHandler(to_console)
-logger.addHandler(to_file)
-
-# Function to redirect exceptions to the log
-# Via http://stackoverflow.com/a/16993115/120898
-def handle_exception(exc_type, exc_value, exc_traceback):
-    # Ignore KeyboardInterrupt so a console Python program can exit with Ctrl + C
-    if issubclass(exc_type, KeyboardInterrupt):
-        sys.__excepthook__(exc_type, exc_value, exc_traceback)
-        return
-
-    logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
-
-sys.excepthook = handle_exception
 
 
-# ---------
-# Classes
-# ---------
-class YIO():
-    """Connect to the Yearbook of International Organizations through
-    Duke's Shibboleth authentication system.
-    """
-    def __init__(self):
-        self.s = requests.session()
-        self.s.headers.update({"User-Agent": choice(config.user_agents)})
-
-        self.login_through_duke()
-
-    def login_through_duke(self):
-        """Bounce between all the different authentication layers to log into
-        the Yearbook site.
-
-        Leaves self.s logged in and ready to be used for all other YIO URLs
-        """
-
-        # URLs to be used
-        yio_url = BASEURL + "/ybio"
-        shib_url = "https://shib.oit.duke.edu/idp/profile/SAML2/POST/SSO"
-        shib_login_url = "https://shib.oit.duke.edu/idp/authn/external"
-
-        # ----------------------------------------------------------------
-        # Step 1: Go to the first YIO page to get authentication cookies
-        # ----------------------------------------------------------------
-        initial_yio_page = self.s.get(yio_url).text
-
-        if "Shibboleth Authentication Request" not in initial_yio_page:
-            raise RuntimeError("Did not correctly connect to the initial YIO proxy page.")
-        else:
-            soup = BeautifulSoup(initial_yio_page)
-            relaystate = soup.find(attrs={"name": "RelayState"})
-            samlrequest = soup.find(attrs={"name": "SAMLRequest"})
-
-            # Use these two values in the POST data
-            saml_relay_data = {"RelayState": relaystate['value'],
-                               "SAMLRequest": samlrequest['value']}
-
-        # -------------------------------------------------------------
-        # Step 2: Go to Duke's login page with the YIO SAML POST data
-        # -------------------------------------------------------------
-        duke_shib_page = self.s.post(shib_url, data=saml_relay_data).text
-
-        if "This service requires cookies" in duke_shib_page:
-            raise RuntimeError("Did not get the correct Duke login page.")
-        else:
-            duke_form_data = {
-                "j_username": config.duke_username,
-                "j_password": config.duke_password,
-                "passwordEntered": "1"
-            }
-
-        # ------------------------------------------------------------
-        # Step 3: Submit Duke's login form and get redirected to YIO
-        # ------------------------------------------------------------
-        response_yio = self.s.post(shib_login_url, data=duke_form_data).text
-
-        if "you must press the Continue button once to proceed" not in response_yio:
-            raise RuntimeError("Did not login to Duke or redirect to YIO.")
-        else:
-            soup = BeautifulSoup(response_yio)
-
-            action_url = soup.find('form')['action']
-            relaystate = soup.find(attrs={"name": "RelayState"})
-            samlresponse = soup.find(attrs={"name": "SAMLResponse"})
-
-            saml_response_data = {"RelayState": relaystate['value'],
-                                  "SAMLResponse": samlresponse['value']}
-
-        # --------------------------------------------------------------
-        # Step 4: Submit the final authenticated SAML POST data to YIO
-        # --------------------------------------------------------------
-        self.s.post(action_url, data=saml_response_data)
-
-        # \ (•◡•) /  All logged in!  \ (•◡•) /
-
-
-class DB():
-    """Functions to interface with SQLite database."""
-    def __init__(self, database):
-        self.conn = sqlite3.connect(database,
-                                    detect_types=sqlite3.PARSE_DECLTYPES)
-        self.c = self.conn.cursor()
-
-        # Turn on foreign keys
-        self.c.execute("PRAGMA foreign_keys = ON")
-
-        # If the database is brand new, set up the structure
-        table_info = self.c.execute("PRAGMA table_info(organizations);").fetchall()
-
-        if len(table_info) == 0:
-            logger.info("Creating new database.")
-            self.create()
-
-    def create(self):
-        # Read the schema file and separate into a list of individual commands
-        create_command = open("schema.sql", "r").read().split(";")
-
-        # Execute each command
-        for command in create_command:
-            self.c.execute(command)
-
-    def insert_org_basic(self, org_details):
-        var_names = ", ".join(org_details.keys())
-        placeholders = ", ".join([":" + key for key in org_details.keys()])
-
-        insert_string = ("INSERT OR IGNORE INTO organizations ({0}) VALUES ({1})"
-                         .format(var_names, placeholders))
-        self.c.execute(insert_string, org_details)
-
-        if self.c.rowcount == 1:
-            logger.info("Inserted {0} ({1}) into database."
-                        .format(org_details['org_name'],
-                                org_details['org_url_id']))
-        else:
-            logger.info("Skipping {0} ({1}). Already in database."
-                        .format(org_details['org_name'],
-                                org_details['org_url_id']))
-
-        self.conn.commit()
-
-    def close(self):
-        self.c.close()
-        self.conn.close()
-
-    def add_columns(self, colnames):
-        # Make the list a set for cool set math functions
-        colnames = set(colnames)
-
-        # Get names of existing columns
-        existing_cols_raw = (self.c
-                             .execute("PRAGMA table_info(organizations);")
-                             .fetchall())
-        existing_cols = set([col[1] for col in existing_cols_raw])
-
-        # Determine which columns don't exist yet
-        new_cols = colnames.difference(existing_cols)
-
-        # Add new columns if needed
-        if len(new_cols) > 0:
-            for col in new_cols:
-                self.c.execute("ALTER TABLE organizations ADD COLUMN {0} text"
-                               .format(col))
-
-
+# Useful functions
 def namify(heading_name):
     """Convert to lowercase and replace all spaces with _s"""
     return(heading_name.strip().replace(" ", "_").lower())
@@ -217,7 +43,7 @@ def clean_text(org_name):
 def subject_url(subject, page=None):
     """Construct URL for subject page to be scraped"""
     url = "/ybio/?wcodes={0}&wcodes_op=contains".format(subject)
-    return(BASEURL + url)
+    return(config.BASE_URL + url)
 
 
 def extract_individual_org(page):
@@ -291,7 +117,7 @@ def parse_subject_page(session, url, subject, db):
     next_page_raw = pager.select(".pager-next")
 
     if len(next_page_raw) > 0:
-        next_page = BASEURL + next_page_raw[0].select("a")[0]['href']
+        next_page = config.BASE_URL + next_page_raw[0].select("a")[0]['href']
     else:
         next_page = None
 
@@ -344,14 +170,14 @@ def main():
     db = DB("data/yio.db")
 
     # If there's a pre-logged-in session, use it
-    if os.path.isfile("yio.pickle"):
+    if os.path.isfile("yio1.pickle"):
         with open("yio.pickle", 'rb') as f:
             yio = pickle.load(f)
         logger.info("No need to log in---using existing session.")
     # Otherwise log in and save the session to file
     else:
         logger.info("Logging in to YIO through Duke's library.")
-        yio = YIO().s
+        yio = YIO("http://ybio.brillonline.com.proxy.lib.duke.edu").s
         with open('yio.pickle', 'wb') as f:
             pickle.dump(yio, f)
         logger.info("Saving session to file for future use.")
