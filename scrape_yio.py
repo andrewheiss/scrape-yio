@@ -13,9 +13,6 @@ import logging
 import os
 import pickle
 import re
-import requests
-import sqlite3
-import sys
 
 # Just parts of modules
 from bs4 import BeautifulSoup
@@ -46,6 +43,7 @@ def subject_url(subject, page=None):
     return(config.BASE_URL + url)
 
 
+# Scraping functions
 def extract_individual_org(page):
     # Select just the main content section
     soup = BeautifulSoup(page)
@@ -167,7 +165,7 @@ def main():
     """Run actual script."""
 
     # Open database
-    db = DB("data/yio.db")
+    db = DB(config.DB_FILE)
 
     # If there's a pre-logged-in session, use it
     if os.path.isfile("yio1.pickle"):
