@@ -158,7 +158,7 @@ def extract_from_row(org):
 # ------------
 # Run script
 # ------------
-def main():
+def scrape_subjects():
     """Run actual script."""
 
     # Open database and log into YIO
@@ -184,4 +184,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    scrape_subjects()
