@@ -124,16 +124,20 @@ class DB():
             self.create()
 
     def add_factory(self, factory):
-        # Closure wizardry: http://stackoverflow.com/a/4020443/120898
-        logger.info("Adding a row factory")
+        if factory:
+            # Closure wizardry: http://stackoverflow.com/a/4020443/120898
+            logger.info("Adding a row factory")
 
-        def build_factory(fac):
-            def namedtuple_factory(cursor, row):
-                return fac(*row)
-            return namedtuple_factory
+            def build_factory(fac):
+                def namedtuple_factory(cursor, row):
+                    return fac(*row)
+                return namedtuple_factory
 
-        # Add the factory and update the cursor
-        self.conn.row_factory = build_factory(factory)
+            self.conn.row_factory = build_factory(factory)
+        else:
+            logger.info("Removing custom row factory")
+            self.conn.row_factory = sqlite3.Row
+
         self.c = self.conn.cursor()
 
     def create(self):
