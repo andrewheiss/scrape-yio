@@ -186,5 +186,22 @@ def scrape_subjects():
     db.close()
 
 
+def scrape_org():
+    OrgPage = namedtuple('OrgPage', ['id_org', 'name', 'url'])
+
+    db = DB(factory=OrgPage)
+
+    db.c.execute("SELECT id_org, org_name, org_url FROM organizations")
+
+    orgs = db.c.fetchall()
+
+    print(orgs[0])
+
+    # extract_individual_org()
+    # colnames = ["testing", "testing2", "testing3", "testing4"]
+    # db.add_raw_columns(colnames)
+
+
 if __name__ == '__main__':
-    scrape_subjects()
+    # scrape_subjects()
+    scrape_org()
