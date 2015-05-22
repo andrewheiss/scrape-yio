@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # Useful functions
 def namify(heading_name):
     """Convert to lowercase and replace all spaces with _s"""
-    return(heading_name.strip().replace(" ", "_").lower())
+    return(heading_name.strip().replace(" ", "_").replace("-", "_").lower())
 
 
 def clean_text(org_name):
@@ -41,9 +41,9 @@ def subject_url(subject, page=None):
 
 
 # Scraping functions
-def parse_individual_org(session, id_org, url, db):
-    logger.info("Getting organization details from {0}".format(url))
-    page = session.get(url).text
+def parse_individual_org(session, org, db):
+    logger.info("Getting organization details from {0}".format(org.url))
+    page = session.get(org.url).text
     soup = BeautifulSoup(page)
 
     # Select just the main content section
@@ -63,8 +63,9 @@ def parse_individual_org(session, id_org, url, db):
     #   etc.
     headings = content.findAll("h2")
 
-    # Initialize dictionary to be saved as JSON
+    # Initialize dictionary to be saved to the database
     raw_data = {}
+    raw_data['fk_org'] = org.id_org
     raw_data['org_name'] = org_name
 
     # Loop through each heading, move along each sibling until coming to a H2
@@ -80,17 +81,16 @@ def parse_individual_org(session, id_org, url, db):
         # Save the section to the dictionary
         raw_data[namify(heading.get_text())] = '\n'.join(raw_section)
 
-    pprint(raw_data)
+    # pprint(raw_data)
 
-    # Save as JSON, just for fun(?)
-    # with open('json/{0}.json'.format(namify(org_name)), 'w') as f:
-    #     json.dump(raw_data, f)
+    # This is tremendously hacky, but I have no idea which sections the YIO
+    # uses---they change depending on the organization. So, this
+    # (inefficiently, probably) adds new columns to the organizations_raw table
+    # as necessary
+    colnames = raw_data.keys()
+    db.add_raw_columns(colnames)
 
-    # TODO: Clean up all the fields
-    # TODO: Save links to scrape later
-    # TODO: Get URL id
-    # colnames = ["testing", "testing2", "testing3", "testing4"]
-    # db.add_columns(colnames)
+    db.insert_dict(raw_data, table="organizations_raw")
 
 
 def parse_subject_page(session, url, subject, db):
@@ -108,7 +108,8 @@ def parse_subject_page(session, url, subject, db):
                     .format(org_details['org_name'],
                             org_details['org_url_id']))
 
-        db.insert_org_basic(org_details)
+        # db.insert_org_basic(org_details)
+        db.insert_dict(org_details, table="organizations")
 
     # Check if there's a next page
     pager = soup.select(".view-yearbook-working .pager")[0]
@@ -198,11 +199,13 @@ def scrape_org():
 
     orgs = db.c.fetchall()
 
-    print(orgs[0])
-
-    # parse_individual_org()
-    # colnames = ["testing", "testing2", "testing3", "testing4"]
-    # db.add_raw_columns(colnames)
+    db.add_factory(None)  # Clear custom factory
+    for org in orgs[0:3]:
+        wait = choice(config.wait_time)
+        logger.info("Waiting for {0} seconds before moving on".format(wait))
+        sleep(wait)
+        logger.info("Parsing details for {0}".format(org.name))
+        parse_individual_org(yio, org, db)
 
 
 if __name__ == '__main__':
