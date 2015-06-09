@@ -11,3 +11,6 @@ temp/*
 
 # Temporarily don't track data
 data/*
+
+# Binary files
+bin/*
