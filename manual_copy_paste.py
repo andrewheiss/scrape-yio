@@ -151,7 +151,7 @@ def get_raw_html(num_orgs):
 
     # Get, save, wait, repeat
     for i, org in enumerate(orgs_to_get):
-        logger.info("{1}: Getting details for {0}.".format(org.name, i))
+        logger.info("{1}: Getting details for {0}.".format(org.name, i + 1))
         raw_html = get_page(browser, org.url)
         data_to_insert = {"fk_org": org.id_org, "org_html": raw_html}
         db.insert_dict(data_to_insert, table="data_raw")
@@ -164,4 +164,4 @@ def get_raw_html(num_orgs):
 
 
 if __name__ == '__main__':
-    get_raw_html(num_orgs=20)
+    get_raw_html(num_orgs=2)
