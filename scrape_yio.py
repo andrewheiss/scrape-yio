@@ -10,6 +10,7 @@ from yio import YIO, DB
 # Pip-installed modules
 import logging
 import re
+import requests
 
 # Just parts of modules
 from bs4 import BeautifulSoup
@@ -42,8 +43,20 @@ def subject_url(subject, page=None):
 
 # Scraping functions
 def parse_individual_org(session, org, db):
-    logger.info("Getting organization details from {0}".format(org.url))
-    page = session.get(org.url).text
+    # Hacky thing. Ordinarily, this takes an existing YIO session object and
+    # uses it to get a URL and then parse it. However, since I can't scrape
+    # with requests anymore and have to manually collect the remaining few
+    # rows, I have all the organzation content saved as HTML in the data_raw
+    # table. So instead of getting a URL, if the session parameter is empty,
+    # this will just start parsing the pre-saved HTML.
+    if type(session) is requests.sessions.Session:
+        print("This is a session object.")
+        logger.info("Getting organization details from {0}".format(org.url))
+        page = session.get(org.url).text
+    else:
+        logger.info("Using existing HTML for {0}".format(org.id_org))
+        page = org.org_html
+
     soup = BeautifulSoup(page)
 
     # Select just the main content section
@@ -200,7 +213,7 @@ def scrape_org():
     orgs = db.c.fetchall()
 
     db.add_factory(None)  # Clear custom factory
-    for org in orgs[0:3]:
+    for org in orgs[0:1]:
         wait = choice(config.wait_time)
         logger.info("Waiting for {0} seconds before moving on".format(wait))
         sleep(wait)
