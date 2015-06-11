@@ -21,7 +21,9 @@ from collections import namedtuple
 from random import choice, sample
 from time import sleep
 from selenium import webdriver
-from selenium.common.exceptions import NoAlertPresentException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
 
 # Start log
 logger = logging.getLogger(__name__)
@@ -60,15 +62,24 @@ def get_page(browser, url):
     browser.get(url)
     logger.info(browser.title)
 
-    # Acknowledge the broken Google Maps warning alert
-    # There are actual ways to check for alerts with Selenium,
-    # but this works well enough.
+    # Properly(!) handle the broken Google Maps warning alert
+    # Via http://stackoverflow.com/a/19019311/120898
     try:
+        WebDriverWait(browser, 3).until(EC.alert_is_present())
         browser.switch_to.alert.accept()
-    except NoAlertPresentException:
+    except TimeoutException:
         pass
 
-    # Select just the #content div
+    # Scroll down, click, wait, scroll up, just for kicks
+    browser.execute_script("window.scrollTo(0, " +
+                           "document.body.scrollHeight/{0});"
+                           .format(choice(range(2, 5))))
+    browser.find_element_by_tag_name("body").click()
+    sleep(choice(range(1, 3)))
+    browser.execute_script("window.scrollTo(0, {0});"
+                           .format(choice(range(0, 200))))
+
+    # We can just select just the #content div...
     # content = browser.find_element_by_id("content")
     # return(content.get_attribute('innerHTML'))
 
@@ -141,4 +152,4 @@ def get_raw_html(num_orgs):
 
 
 if __name__ == '__main__':
-    get_raw_html(num_orgs=2)
+    get_raw_html(num_orgs=1)
