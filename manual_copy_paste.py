@@ -134,7 +134,7 @@ def parse_raw_html():
 #
 def get_raw_html(num_orgs):
     # Choose a random browser
-    if choice(["Chrome", "Firefox"]) is "Firefox":
+    if choice(["Firefox", "Firefox"]) is "Firefox":
         fp = webdriver.FirefoxProfile()
         fp.add_extension(extension='bin/gaoptoutaddon_0.9.6.xpi')
         browser = webdriver.Firefox(firefox_profile=fp)
