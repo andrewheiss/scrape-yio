@@ -24,6 +24,7 @@ from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.chrome.options import Options
 
 # Start log
 logger = logging.getLogger(__name__)
@@ -124,13 +125,24 @@ def parse_raw_html():
 # This is all totally procedural, not functional or object-oriented at all,
 # but that's okay because it's really just replicating the exact procedures
 # a human does (and I don't want to OOP it, since this is all just temporary)
+#
+# Chromedriver: https://sites.google.com/a/chromium.org/chromedriver/
+#
+# GA blocking extension from https://tools.google.com/dlpage/gaoptout
+# Chrome's CRX: http://chrome-extension-downloader.com
+# Firefox: https://dl.google.com/analytics/optout/gaoptoutaddon_0.9.6.xpi
+#
 def get_raw_html(num_orgs):
     # Choose a random browser
     if choice(["Chrome", "Firefox"]) is "Firefox":
-        browser = webdriver.Firefox()
+        fp = webdriver.FirefoxProfile()
+        fp.add_extension(extension='bin/gaoptoutaddon_0.9.6.xpi')
+        browser = webdriver.Firefox(firefox_profile=fp)
     else:
-        # Download this from https://sites.google.com/a/chromium.org/chromedriver/
-        browser = webdriver.Chrome("bin/chromedriver")
+        chrome_options = Options()
+        chrome_options.add_extension('bin/ga-optout.crx')
+        browser = webdriver.Chrome("bin/chromedriver",
+                                   chrome_options=chrome_options)
 
     login_manually(browser)
 
