@@ -75,7 +75,9 @@ def get_page(browser, url):
     browser.execute_script("window.scrollTo(0, " +
                            "document.body.scrollHeight/{0});"
                            .format(choice(range(2, 5))))
-    browser.find_element_by_tag_name("body").click()
+    # Clicking does weird things in Chrome
+    # (i.e. clicks on the top centered element)
+    # browser.find_element_by_tag_name("body").click()
     sleep(choice(range(1, 3)))
     browser.execute_script("window.scrollTo(0, {0});"
                            .format(choice(range(0, 200))))
