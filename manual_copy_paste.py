@@ -25,6 +25,7 @@ from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import UnexpectedAlertPresentException
 from selenium.webdriver.chrome.options import Options
 
 # Start log
@@ -159,17 +160,25 @@ def get_raw_html(num_orgs):
 
     # Get, save, wait, repeat
     for i, org in enumerate(orgs_to_get):
-        logger.info("{1}: Getting details for {0}.".format(org.name, i + 1))
-        raw_html = get_page(browser, org.url)
-        data_to_insert = {"fk_org": org.id_org, "org_html": raw_html}
-        db.insert_dict(data_to_insert, table="data_raw")
-        wait = choice(config.wait_time)
-        logger.info("Waiting for {0} seconds before moving on".format(wait))
-        sleep(wait)
+        try:
+            logger.info("{1}: Getting details for {0}.".format(org.name, i + 1))
+            raw_html = get_page(browser, org.url)
+            data_to_insert = {"fk_org": org.id_org, "org_html": raw_html}
+            db.insert_dict(data_to_insert, table="data_raw")
+
+            if i != len(orgs_to_get) - 1:
+                wait = choice(config.wait_time)
+                logger.info("Waiting for {0} seconds before moving on".format(wait))
+                sleep(wait)
+            else:
+                logger.info("All done! \(•◡•)/")
+        except UnexpectedAlertPresentException:
+            logger.info("Weird popup error")
+            continue
 
     browser.close()
     db.close()
 
 
 if __name__ == '__main__':
-    get_raw_html(num_orgs=2)
+    get_raw_html(num_orgs=20)
