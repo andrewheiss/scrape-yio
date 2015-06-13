@@ -13,13 +13,14 @@ import config
 import scrape_yio
 from yio import DB
 
-# Pip-installed modules
+# Full modules
 import logging
 
 # Just parts of modules
 from collections import namedtuple
 from random import choice, sample
 from time import sleep
+from sys import platform
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -136,15 +137,20 @@ def parse_raw_html():
 #
 def get_raw_html(num_orgs):
     # Choose a random browser
-    if choice(["Firefox", "Firefox"]) is "Firefox":
+    if choice(["Firefox", "Chrome"]) is "Firefox":
         fp = webdriver.FirefoxProfile()
         fp.add_extension(extension='bin/gaoptoutaddon_0.9.6.xpi')
         browser = webdriver.Firefox(firefox_profile=fp)
     else:
         chrome_options = Options()
         chrome_options.add_extension('bin/ga-optout.crx')
-        browser = webdriver.Chrome("bin/chromedriver",
-                                   chrome_options=chrome_options)
+
+        if "linux" in platform:
+            driver_bin = "bin/chromedriver_linux"
+        else:
+            driver_bin = "bin/chromedriver"
+
+        browser = webdriver.Chrome(driver_bin, chrome_options=chrome_options)
 
     login_manually(browser)
 
