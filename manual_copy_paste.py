@@ -126,6 +126,23 @@ def parse_raw_html():
         scrape_yio.parse_individual_org(None, org, db)
 
 
+# Count how many rows are left to do
+# There's probably a pure SQL way to do this, but I don't want to figure it out
+def get_n_remaining():
+    db = DB()
+
+    db.c.execute("SELECT COUNT(DISTINCT fk_org) FROM data_raw")
+    manually_done = db.c.fetchone()[0]
+
+    db.c.execute("SELECT COUNT(id_org) FROM organizations")
+    master_list = db.c.fetchone()[0]
+
+    db.c.execute("SELECT COUNT(fk_org) FROM organizations_raw")
+    previously_done = db.c.fetchone()[0]
+
+    return(master_list - previously_done - manually_done)
+
+
 # This is all totally procedural, not functional or object-oriented at all,
 # but that's okay because it's really just replicating the exact procedures
 # a human does (and I don't want to OOP it, since this is all just temporary)
@@ -138,7 +155,7 @@ def parse_raw_html():
 #
 def get_raw_html(num_orgs):
     # Choose a random browser
-    if choice(["Firefox", "Chrome"]) is "Firefox":
+    if choice(["Firefox", "Firefox"]) is "Firefox":
         fp = webdriver.FirefoxProfile()
         fp.add_extension(extension='bin/gaoptoutaddon_0.9.6.xpi')
         browser = webdriver.Firefox(firefox_profile=fp)
@@ -172,6 +189,7 @@ def get_raw_html(num_orgs):
                 sleep(wait)
             else:
                 logger.info("All done! \(•◡•)/")
+                logger.info("{0} rows left to do.".format(get_n_remaining()))
         except UnexpectedAlertPresentException:
             logger.info("Weird popup error")
             continue
@@ -181,4 +199,5 @@ def get_raw_html(num_orgs):
 
 
 if __name__ == '__main__':
-    get_raw_html(num_orgs=20)
+    get_raw_html(num_orgs=1)
+    # print(get_n_remaining())
