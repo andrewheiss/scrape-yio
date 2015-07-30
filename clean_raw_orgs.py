@@ -9,7 +9,7 @@ import os
 import webbrowser
 import cgi
 from bs4 import BeautifulSoup
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 
 # Start log
 logger = logging.getLogger(__name__)
@@ -98,6 +98,60 @@ def clean_events(cell):
     events = strip_tags(cell, remove_search_link=True)
     return events
 
+def clean_contact(text):
+    # Each field is formatted like this:
+    #
+    #   Main address: 1234 Main Street
+    #   More address (sometimes)
+    #   Even more address (sometimes)
+    #   Tel: 555-555-5555
+    #   Fax: 555-555-5555
+    #   Email: test@example.com
+    #
+    #   (Possibly more contacts, following same format as above)
+    #
+    #   URL: http://www.example.com
+    #
+    # This function puts each of those sections in a dictionary of lists and
+    # then loops through each section to extract telephone, fax, e-mail, and
+    # URL information. All that is left behind is considered part of the
+    # address.
+
+    if not text:
+        return
+
+    details = defaultdict(list)
+
+    for section in text.split('\n'):
+        lines = [strip_tags(line, whitelist=[])
+                 for line in section.split('<br/>')]
+        lines = list(filter(None, lines))
+
+        if len(lines) == 0:
+            break
+
+        # lines[:] makes a copy of lines so that elements can be removed in place
+        for line in lines[:]:
+            if line.startswith('Tel:'):
+                details['telephone'].append(line.replace('Tel:', '').strip())
+                lines.remove(line)
+            elif line.startswith('Fax:'):
+                details['fax'].append(line.replace('Fax:', '').strip())
+                lines.remove(line)
+            elif line.startswith('Email:'):
+                details['email'].append(line.replace('Email:', '')
+                                        .replace(' (at) ', '@').strip())
+                lines.remove(line)
+            elif line.startswith('URL:'):
+                details['url'].append(line.replace('URL:', '').strip())
+                lines.remove(line)
+
+        if len(lines) > 0:
+            details['contact'].append("\n".join(lines))
+
+    return details
+
+
 def clean_rows():
     # All the rows to parse (organizations collected with `requests` and
     # manually) are in the view `clean_me`, created with this command:
@@ -126,7 +180,7 @@ def clean_rows():
 
     rows = results.fetchall()
 
-    for row in rows[28:29]:
+    for i, row in enumerate(rows[49:50]):
         # logger.info("Last news received: " + clean_news(row.last_news_received))
         # logger.info("Structure: " + clean_delim(row.structure))
         # logger.info("History: " + strip_tags(row.history))
@@ -136,7 +190,8 @@ def clean_rows():
         # logger.info("Information services: " + strip_tags(row.information_services))
         # logger.info("Publications: " + clean_delim(row.publications))
         # logger.info("Activities: " + strip_tags(row.activities))
-        logger.info("Events: " + clean_events(row.events))
+        # logger.info("Events: " + clean_events(row.events))
+        logger.info(clean_contact(row.contact_details))
 
 
 if __name__ == '__main__':
