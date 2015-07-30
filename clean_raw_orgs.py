@@ -5,11 +5,55 @@ from yio import DB
 
 import logging
 import re
+import os
+import webbrowser
+import cgi
 from bs4 import BeautifulSoup
 from collections import namedtuple
 
 # Start log
 logger = logging.getLogger(__name__)
+
+def show(html):
+    template = """<!DOCTYPE html>
+<html>
+<meta charset="utf-8" />
+<style type="text/css">
+    body {{
+        text-align: center;
+        font-family: "Source Sans Pro";
+    }}
+
+    pre {{
+        white-space: pre-wrap;
+        font-size: 80%;
+    }}
+
+    #wrapper {{
+        width: 80%;
+        margin: 20px auto;
+        text-align: left;
+    }}
+</style>
+<body>
+<div id="wrapper">
+
+{0}
+
+<hr>
+
+<code><pre>{1}</pre></code>
+
+</div>
+</body>
+</html>
+"""
+    path = os.path.abspath('temp.html')
+    url = 'file://' + path
+
+    with open(path, 'w') as f:
+        f.write(template.format(html, cgi.escape(html)))
+    webbrowser.open(url)
 
 def clean_simple(cell):
     soup = BeautifulSoup(cell)
