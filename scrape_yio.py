@@ -245,8 +245,6 @@ def scrape_org():
         sleep(wait)
         logger.info("Parsing details for ({1}) {0}".format(org.name, org.id_org))
         parse_individual_org(yio, org, db)
-    # TODO: UNESCO (2744) is broken: http://ybio.brillonline.com.proxy.lib.duke.edu/s/or/en/1100010946
-    # TODO: Check if 2745 is done
 
 
 if __name__ == '__main__':
