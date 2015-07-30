@@ -60,50 +60,60 @@ def parse_individual_org(session, org, db):
     soup = BeautifulSoup(page)
 
     # Select just the main content section
-    content = soup.select("#content")[0]
+    try:
+        content = soup.select("#content")[0]
 
-    # Get rid of embedded Javascript
-    [tag.extract() for tag in content.findAll("script")]
+        # Get rid of embedded Javascript
+        [tag.extract() for tag in content.findAll("script")]
 
-    # Get organization name
-    org_name = clean_text(content.find("h1").get_text())
+        # Get organization name
+        org_name = clean_text(content.find("h1").get_text())
 
-    # Find all H2s, since the page is structured like so:
-    #   <h2></h2>
-    #   <p></p>
-    #   <h2></h2>
-    #   <p></p>
-    #   etc.
-    headings = content.findAll("h2")
+        # Find all H2s, since the page is structured like so:
+        #   <h2></h2>
+        #   <p></p>
+        #   <h2></h2>
+        #   <p></p>
+        #   etc.
+        headings = content.findAll("h2")
 
-    # Initialize dictionary to be saved to the database
-    raw_data = {}
-    raw_data['fk_org'] = org.id_org
-    raw_data['org_name'] = org_name
+        # Initialize dictionary to be saved to the database
+        raw_data = {}
+        raw_data['fk_org'] = org.id_org
+        raw_data['org_name'] = org_name
 
-    # Loop through each heading, move along each sibling until coming to a H2
-    for heading in headings:
-        raw_section = []  # Track the parts of the section
-        for sibling in heading.next_siblings:
-            if sibling.name == "h2":
-                break  # Stop, since we're in a new section
-            else:
-                if sibling != "\n":
-                    raw_section.append(str(sibling))  # Add to section
+        # Loop through each heading, move along each sibling until coming to a H2
+        for heading in headings:
+            raw_section = []  # Track the parts of the section
+            for sibling in heading.next_siblings:
+                if sibling.name == "h2":
+                    break  # Stop, since we're in a new section
+                else:
+                    if sibling != "\n":
+                        raw_section.append(str(sibling))  # Add to section
 
-        # Save the section to the dictionary
-        raw_data[namify(heading.get_text())] = '\n'.join(raw_section)
+            # Save the section to the dictionary
+            raw_data[namify(heading.get_text())] = '\n'.join(raw_section)
 
-    # pprint(raw_data)
+        # pprint(raw_data)
 
-    # This is tremendously hacky, but I have no idea which sections the YIO
-    # uses---they change depending on the organization. So, this
-    # (inefficiently, probably) adds new columns to the organizations_raw table
-    # as necessary
-    colnames = raw_data.keys()
-    db.add_raw_columns(colnames)
+        # This is tremendously hacky, but I have no idea which sections the YIO
+        # uses---they change depending on the organization. So, this
+        # (inefficiently, probably) adds new columns to the organizations_raw table
+        # as necessary
+        colnames = raw_data.keys()
+        db.add_raw_columns(colnames)
 
-    db.insert_dict(raw_data, table="organizations_raw")
+        db.insert_dict(raw_data, table="organizations_raw")
+    except Exception as e:
+        message = "{0} ({1}): row {2}\n".format(e.__class__.__name__,
+                                                e, org.id_org)
+        logger.warning(message)
+
+        with open("borked.txt", "a") as myfile:
+            myfile.write(message)
+
+        return
 
 
 def parse_subject_page(session, url, subject, db):
@@ -172,6 +182,22 @@ def extract_from_row(org):
     return(org_details)
 
 
+def parse_manual_orgs():
+    ManualOrg = namedtuple('ManualOrg', ['id_org', 'org_html'])
+
+    db = DB()
+    db.add_factory(factory=ManualOrg)
+
+    db.c.execute("SELECT fk_org, org_html FROM data_raw")
+
+    orgs = db.c.fetchall()
+
+    db.add_factory(None)  # Clear custom factory
+
+    for org in orgs:
+        parse_individual_org(None, org, db)
+
+
 # ------------
 # Run script
 # ------------
@@ -225,4 +251,5 @@ def scrape_org():
 
 if __name__ == '__main__':
     # scrape_subjects()
-    scrape_org()
+    # scrape_org()
+    parse_manual_orgs()

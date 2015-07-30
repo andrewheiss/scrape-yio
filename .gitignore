@@ -5,6 +5,7 @@ __pycache__/*
 # Miscellaneous files
 *.pickle
 *.log
+borked.txt
 
 # Temporary files (like test HTML files)
 temp/*
