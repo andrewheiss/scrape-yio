@@ -64,6 +64,20 @@ def clean_news(cell):
     actual_date = soup.select("div")[0].get_text()
     return actual_date
 
+def clean_structure(cell):
+    """Each organizational unit is separated by . with subunits separated by ;"""
+    structures = ""
+
+    soup = BeautifulSoup(cell)
+    for tag in soup.findAll('p'):
+        # Extract just the contents of <p> and join them all together
+        tag_contents = "".join(str(chunk) for chunk in tag.contents)
+
+        # Separate out the sentences
+        structures += "\n".join(re.split(r'\.\s*', tag_contents))
+
+    return structures.strip()
+
 
 def clean_rows():
     # All the rows to parse (organizations collected with `requests` and
@@ -85,6 +99,7 @@ def clean_rows():
 
     for row in rows[27:28]:
         # logger.info("Last news received: " + clean_news(row.last_news_received))
+        logger.info("Structure: " + clean_structure(row.structure))
         # type_i = clean_simple(row.type_i_classification)
 
         # type_i = re.search(r"^(\w):",

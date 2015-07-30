@@ -1,6 +1,7 @@
 # Configuration file
 config.py
 __pycache__/*
+*.pyc
 
 # Miscellaneous files
 *.pickle
@@ -9,6 +10,7 @@ borked.txt
 
 # Temporary files (like test HTML files)
 temp/*
+temp.html
 
 # Temporarily don't track data
 data/*
