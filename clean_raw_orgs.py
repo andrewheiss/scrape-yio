@@ -15,6 +15,9 @@ from collections import namedtuple
 logger = logging.getLogger(__name__)
 
 def show(html):
+    if not html:
+        return
+
     template = """<!DOCTYPE html>
 <html>
 <meta charset="utf-8" />
@@ -55,27 +58,45 @@ def show(html):
         f.write(template.format(html, cgi.escape(html)))
     webbrowser.open(url)
 
-def strip_tags(html, whitelist=['a']):
+def strip_tags(html, whitelist=['a', 'i', 'b', 'em', 'strong'], remove_search_link=False):
     """Strip all HTML tags except for a list of whitelisted tags."""
     # Adapted from http://stackoverflow.com/a/16144379/120898
+    if not html:
+        return ""
+
     soup = BeautifulSoup(html)
 
     for tag in soup.findAll(True):
+        # Remove unallowed tags
         if tag.name not in whitelist:
             tag.replaceWithChildren()
+
+        # Remove all attributes except href
+        if any(tag.attrs):
+            if remove_search_link:
+                tag_link = tag.attrs.get('href')
+                if tag_link and 'icco/search' in tag_link:
+                    tag.extract()
+
+            tag.attrs = {key: value for key, value in tag.attrs.items()
+                         if key in ['href']}
 
     return str(soup).strip()
 
 def clean_news(cell):
+    if not cell:
+        return ""
     soup = BeautifulSoup(cell)
     actual_date = soup.select("div")[0].get_text()
-    return actual_date
+    return actual_date.strip()
 
-def clean_structure(cell):
-    """Each organizational unit is separated by . with subunits separated by ;"""
-    structures = "\n".join(re.split(r'\.\s*', strip_tags(cell)))
-    return structures
+def clean_delim(cell, delim=r'\.\s*'):
+    separated = "\n".join(re.split(delim, strip_tags(cell)))
+    return separated.strip()
 
+def clean_events(cell):
+    events = strip_tags(cell, remove_search_link=True)
+    return events
 
 def clean_rows():
     # All the rows to parse (organizations collected with `requests` and
@@ -95,10 +116,17 @@ def clean_rows():
 
     rows = results.fetchall()
 
-    for row in rows[27:28]:
+    for row in rows[28:29]:
         # logger.info("Last news received: " + clean_news(row.last_news_received))
-        # logger.info("Structure: " + clean_structure(row.structure))
-        logger.info("History: " + strip_tags(row.history))
+        # logger.info("Structure: " + clean_delim(row.structure))
+        # logger.info("History: " + strip_tags(row.history))
+        # logger.info("Financing: " + strip_tags(row.financing))
+        # logger.info("Aims: " + strip_tags(row.aims))
+        # logger.info("Staff: " + strip_tags(row.staff))
+        # logger.info("Information services: " + strip_tags(row.information_services))
+        # logger.info("Publications: " + clean_delim(row.publications))
+        # logger.info("Activities: " + strip_tags(row.activities))
+        logger.info("Events: " + clean_events(row.events))
 
 
 if __name__ == '__main__':
