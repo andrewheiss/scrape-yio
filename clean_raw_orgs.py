@@ -101,10 +101,20 @@ def clean_events(cell):
 def clean_rows():
     # All the rows to parse (organizations collected with `requests` and
     # manually) are in the view `clean_me`, created with this command:
+    #
     # CREATE VIEW clean_me AS
     #   SELECT * FROM organizations_raw_requests
     #   UNION ALL
-    #   SELECT * FROM organizations_raw
+    #   SELECT fk_org, org_name, type_i_classification, contact_details, members,
+    #     last_news_received, events, structure, history, activities, financing,
+    #     relations_with_inter_governmental_organizations, consultative_status,
+    #     aims, publications, relations_with_non_governmental_organizations,
+    #     staff, subjects, type_ii_classification, languages, information_services
+    #   FROM organizations_raw
+    #
+    # The column names for the second table have to be specified manually,
+    # or else the two tables won't be stacked properly
+
     # Get existing column names and create named tuple row factory
     db = DB()
     colnames_raw = db.c.execute("PRAGMA table_info(clean_me);").fetchall()
