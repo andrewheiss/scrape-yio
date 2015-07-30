@@ -55,9 +55,16 @@ def show(html):
         f.write(template.format(html, cgi.escape(html)))
     webbrowser.open(url)
 
-def clean_simple(cell):
-    soup = BeautifulSoup(cell)
-    return soup.get_text()
+def strip_tags(html, whitelist=['a']):
+    """Strip all HTML tags except for a list of whitelisted tags."""
+    # Adapted from http://stackoverflow.com/a/16144379/120898
+    soup = BeautifulSoup(html)
+
+    for tag in soup.findAll(True):
+        if tag.name not in whitelist:
+            tag.replaceWithChildren()
+
+    return str(soup).strip()
 
 def clean_news(cell):
     soup = BeautifulSoup(cell)
@@ -66,17 +73,8 @@ def clean_news(cell):
 
 def clean_structure(cell):
     """Each organizational unit is separated by . with subunits separated by ;"""
-    structures = ""
-
-    soup = BeautifulSoup(cell)
-    for tag in soup.findAll('p'):
-        # Extract just the contents of <p> and join them all together
-        tag_contents = "".join(str(chunk) for chunk in tag.contents)
-
-        # Separate out the sentences
-        structures += "\n".join(re.split(r'\.\s*', tag_contents))
-
-    return structures.strip()
+    structures = "\n".join(re.split(r'\.\s*', strip_tags(cell)))
+    return structures
 
 
 def clean_rows():
@@ -99,13 +97,9 @@ def clean_rows():
 
     for row in rows[27:28]:
         # logger.info("Last news received: " + clean_news(row.last_news_received))
-        logger.info("Structure: " + clean_structure(row.structure))
-        # type_i = clean_simple(row.type_i_classification)
+        # logger.info("Structure: " + clean_structure(row.structure))
+        logger.info("History: " + strip_tags(row.history))
 
-        # type_i = re.search(r"^(\w):",
-        #                    clean_simple(row.type_i_classification)).group(1)
-
-        # print(type_i)
 
 if __name__ == '__main__':
     clean_rows()
