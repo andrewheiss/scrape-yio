@@ -15,8 +15,11 @@ def clean_simple(cell):
     soup = BeautifulSoup(cell)
     return soup.get_text()
 
-def clean_rows():
-    db = DB()
+def clean_news(cell):
+    soup = BeautifulSoup(cell)
+    actual_date = soup.select("div")[0].get_text()
+    return actual_date
+
 
 def clean_rows():
     # All the rows to parse (organizations collected with `requests` and
@@ -36,7 +39,8 @@ def clean_rows():
 
     rows = results.fetchall()
 
-    for row in rows[:1]:
+    for row in rows[27:28]:
+        # logger.info("Last news received: " + clean_news(row.last_news_received))
         # type_i = clean_simple(row.type_i_classification)
 
         # type_i = re.search(r"^(\w):",
