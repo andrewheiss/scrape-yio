@@ -62,7 +62,7 @@ def strip_tags(html, whitelist=['a', 'i', 'b', 'em', 'strong'], remove_search_li
     """Strip all HTML tags except for a list of whitelisted tags."""
     # Adapted from http://stackoverflow.com/a/16144379/120898
     if not html:
-        return ""
+        return ''
 
     soup = BeautifulSoup(html)
 
@@ -85,18 +85,28 @@ def strip_tags(html, whitelist=['a', 'i', 'b', 'em', 'strong'], remove_search_li
 
 def clean_news(cell):
     if not cell:
-        return ""
+        return ''
     soup = BeautifulSoup(cell)
-    actual_date = soup.select("div")[0].get_text()
+    actual_date = soup.select('div')[0].get_text()
     return actual_date.strip()
 
 def clean_delim(cell, delim=r'\.\s*'):
+    if not cell:
+        return ''
     separated = "\n".join(re.split(delim, strip_tags(cell)))
     return separated.strip()
 
 def clean_events(cell):
+    if not cell:
+        return ''
     events = strip_tags(cell, remove_search_link=True)
     return events
+
+def clean_type(cell):
+    if not cell:
+        return ''
+    org_type = strip_tags(cell).split(':')
+    return org_type[0]
 
 def clean_contact(text):
     # Each field is formatted like this:
@@ -180,7 +190,7 @@ def clean_rows():
 
     rows = results.fetchall()
 
-    for i, row in enumerate(rows[49:50]):
+    for i, row in enumerate(rows[0:1]):
         # logger.info("Last news received: " + clean_news(row.last_news_received))
         # logger.info("Structure: " + clean_delim(row.structure))
         # logger.info("History: " + strip_tags(row.history))
@@ -191,7 +201,21 @@ def clean_rows():
         # logger.info("Publications: " + clean_delim(row.publications))
         # logger.info("Activities: " + strip_tags(row.activities))
         # logger.info("Events: " + clean_events(row.events))
-        logger.info(clean_contact(row.contact_details))
+        logger.info(clean_type(row.type_i_classification))
+        logger.info(clean_type(row.type_ii_classification))
+
+        # TODO: Unpack this into multiple columns somehow
+        # logger.info(clean_contact(row.contact_details))
+
+        # Relational tables for these:
+        # TODO: members
+        # TODO: relations_with_inter_governmental_organizations
+        # TODO: relations_With_non_governmental_organization
+        # TODO: consultative_status
+        # TODO: subjects
+        # TODO: languages
+
+        # TODO: Make sure all nones are actually none or NA, not just ""
 
 
 if __name__ == '__main__':
