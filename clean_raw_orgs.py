@@ -8,6 +8,7 @@ import re
 import os
 import webbrowser
 import cgi
+from pprint import pprint
 from bs4 import BeautifulSoup
 from collections import namedtuple, defaultdict
 
@@ -64,9 +65,16 @@ def strip_tags(html, whitelist=['a', 'i', 'b', 'em', 'strong'], remove_search_li
     if not html:
         return ''
 
-    soup = BeautifulSoup(html)
+    # Remove newlines first because they conflict with check for malformed HTML
+    soup = BeautifulSoup(html.replace('\n', ''))
 
-    for tag in soup.findAll(True):
+    if len(soup) == 0:
+        # There's probably malformed HTML, like </p></p></p></div> in the lists
+        logger.info("Trying to fix malformed HTML")
+        html = html.replace('</p>', '').replace('</div>', '')
+        soup = BeautifulSoup(html)
+
+    for tag in soup.find_all(True):
         # Remove unallowed tags
         if tag.name not in whitelist:
             tag.replaceWithChildren()
@@ -81,7 +89,7 @@ def strip_tags(html, whitelist=['a', 'i', 'b', 'em', 'strong'], remove_search_li
             tag.attrs = {key: value for key, value in tag.attrs.items()
                          if key in ['href']}
 
-    return str(soup).strip()
+    return str(soup).strip().replace('\xa0', ' ')
 
 def clean_news(cell):
     if not cell:
@@ -161,6 +169,93 @@ def clean_contact(text):
 
     return details
 
+def clean_list(text):
+    # Each field is formatted like this:
+    #
+    #   Type of membership (3):
+    #   • <a>Thing 1</a>.
+    #   • <a>Thing 2</a>.
+    #   • <a>Thing 3</a>.
+    #
+    #   Other type of membership (2):
+    #   • <a>Other thing 1</a>;
+    #   • <a>Other thing 2</a>.
+    #
+    #   Members in 2 countries on 2 continents.
+    #
+
+    if not text:
+        return
+
+    # Divide into sentences.
+    # Sentences that end in : indicate a list header
+    # Lists can be nested (like continents)
+    # Continent lists are comma separated
+    # Non-continent lists can be ; or , delimited, meaning the whole list is really a sentence
+    # Essentially every list is a complete sentence; some are just nested
+    list_parts = []
+    insert_subheading = False
+
+    Line = namedtuple('Line', ['contents', 'line_type'])
+    CountrySummary = namedtuple('CountrySummary', ['countries', 'continents'])
+
+    subheading = re.compile(r'• .*: ')
+    heading = re.compile(r'(.+?:)')
+
+    for sen in [strip_tags(sen) for sen in text.split('.')]:
+        # Check for subheadings first, since they look like headings but don't
+        # save them to list_parts until after saving any headings
+        check_subheading = subheading.search(sen)
+        if check_subheading:
+            insert_subheading = True
+            clean_subheading = (re.sub(':|•', '', check_subheading.group(0))
+                                .strip())
+            subheading_temp = Line(clean_subheading, 'subheading')
+            sen = subheading.sub('', sen)
+
+        # Extract headings
+        check_heading = heading.match(sen)
+        if check_heading:
+            clean_heading = (re.sub(r'\(\d+\)', '', check_heading.group(0))
+                             .replace(':', '').strip())
+            list_parts.append(Line(clean_heading, 'heading'))
+
+            sen = heading.sub('', sen)  # Remove heading from sentence
+
+        # Insert subheading if there is one
+        if insert_subheading:
+            list_parts.append(subheading_temp)
+
+            list_elements = sen.split(',')
+            for part in list_elements:
+                list_parts.append(extract_links(part))
+                # TODO: What if there is no link?
+            insert_subheading = False
+        else:
+            if sen.startswith('Members in'):
+                numbers = re.findall(r'\d+', sen)
+                countries = numbers[0]
+                continents = numbers[1] if len(numbers) > 1 else 0
+                list_parts.append(CountrySummary(countries, continents))
+            else:
+                list_parts.append(Line(sen, 'line'))
+            # TODO: Make sure this really works for all situations
+
+    pprint(list_parts)
+
+def parse_list_line(text):
+    pass
+
+def extract_links(html):
+    Link = namedtuple('Link', ['text', 'url'])
+    links = []
+
+    soup = BeautifulSoup(html)
+    for link in soup.find_all('a'):
+        links.append(Link(link.get_text(), link.get('href')))
+
+    return links
+
 
 def clean_rows():
     # All the rows to parse (organizations collected with `requests` and
@@ -190,7 +285,9 @@ def clean_rows():
 
     rows = results.fetchall()
 
-    for i, row in enumerate(rows[0:1]):
+    output = ""
+    for row in rows[0:5]:
+        logger.info("{0.fk_org}: {0.org_name}".format(row))
         # logger.info("Last news received: " + clean_news(row.last_news_received))
         # logger.info("Structure: " + clean_delim(row.structure))
         # logger.info("History: " + strip_tags(row.history))
@@ -201,13 +298,18 @@ def clean_rows():
         # logger.info("Publications: " + clean_delim(row.publications))
         # logger.info("Activities: " + strip_tags(row.activities))
         # logger.info("Events: " + clean_events(row.events))
-        logger.info(clean_type(row.type_i_classification))
-        logger.info(clean_type(row.type_ii_classification))
+        # logger.info(clean_type(row.type_i_classification))
+        # logger.info(clean_type(row.type_ii_classification))
 
         # TODO: Unpack this into multiple columns somehow
         # logger.info(clean_contact(row.contact_details))
 
         # Relational tables for these:
+        logger.info(clean_list(row.members))
+        # output += '<h2>{0}: {1}</h2>'.format(i, row.org_name)
+        # output += row.members
+        # output += '<hr>'
+        # show(clean_list(row.members))
         # TODO: members
         # TODO: relations_with_inter_governmental_organizations
         # TODO: relations_With_non_governmental_organization
@@ -216,7 +318,7 @@ def clean_rows():
         # TODO: languages
 
         # TODO: Make sure all nones are actually none or NA, not just ""
-
+    # show(output)
 
 if __name__ == '__main__':
     clean_rows()
