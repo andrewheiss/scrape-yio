@@ -256,6 +256,36 @@ def extract_links(html):
 
     return links
 
+def clean_subject(cell):
+    # <ul>
+    #     <li>Level 1a</li>
+    #     <ul>
+    #         <li>Level 2a</li>
+    #     </ul>
+    #     <li>Level 1b</li>
+    #     <ul>
+    #         <li>Level 2b</li>
+    #         <li>Level 2c</li>
+    #         <li>Level 2d</li>
+    #     </ul>
+    # </ul>
+    if not cell:
+        return ''
+    soup = BeautifulSoup(cell)
+    ul = soup.select('ul')
+
+    Subject = namedtuple('Subject', ['level_2', 'level_1'])
+    subjects = []
+
+    level_1 = ''
+    for li in ul[0].find_all(['li']):
+        if li.parent.parent.name == 'ul':
+            subjects.append(Subject(li.get_text(), level_1))
+        else:
+            level_1 = li.get_text()
+
+    return subjects
+
 
 def clean_rows():
     # All the rows to parse (organizations collected with `requests` and
@@ -285,8 +315,8 @@ def clean_rows():
 
     rows = results.fetchall()
 
-    output = ""
-    for row in rows[0:5]:
+    output = ''
+    for row in rows[0:100]:
         logger.info("{0.fk_org}: {0.org_name}".format(row))
         # logger.info("Last news received: " + clean_news(row.last_news_received))
         # logger.info("Structure: " + clean_delim(row.structure))
@@ -305,9 +335,9 @@ def clean_rows():
         # logger.info(clean_contact(row.contact_details))
 
         # Relational tables for these:
-        logger.info(clean_list(row.members))
+        # logger.info(clean_list(row.members))  # TODO: Finish members
         # output += '<h2>{0}: {1}</h2>'.format(i, row.org_name)
-        # output += row.members
+        # output += str(row.subjects)
         # output += '<hr>'
         # show(clean_list(row.members))
         # TODO: members
@@ -315,6 +345,9 @@ def clean_rows():
         # TODO: relations_With_non_governmental_organization
         # TODO: consultative_status
         # TODO: subjects
+        logger.info("Subjects: " + str(clean_subject(row.subjects)))
+        # clean_subject(row.subjects)
+        # clean_subject(asdf)
         # TODO: languages
 
         # TODO: Make sure all nones are actually none or NA, not just ""
