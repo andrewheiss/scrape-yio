@@ -18,14 +18,41 @@ CREATE TABLE organizations (
 );
 CREATE UNIQUE INDEX org_url_index ON organizations (org_url_id);
 
+
 -- Final tables
 CREATE TABLE organizations_final (
   id_org integer PRIMARY KEY,
   org_name text NOT NULL,
-  org_acronym text,
-  org_url_id text NOT NULL
+  acronym text,
+  founded text,
+  city_hq text,
+  country_hq text,
+  type_i_dir text,
+  type_ii_dir text,
+  type_iii_dir text,
+  type_i text,
+  type_ii text,
+  uia_id text NOT NULL,
+  url_id text NOT NULL,
+  subject_dir text,
+  history text,
+  aims text,
+  events text,
+  activities text,
+  structure text,
+  staff text,
+  financing text,
+  languages text,
+  consultative_status text,
+  relations_igos text,
+  relations_ngos text,
+  publications text,
+  information_services text,
+  members text,
+  last_news text,
+  contact text
 );
-CREATE UNIQUE INDEX org_url_index_final ON organizations_final (org_url_id);
+CREATE UNIQUE INDEX org_url_index_final ON organizations_final (url_id);
 
 CREATE TABLE subjects (
   id_subject integer PRIMARY KEY,
