@@ -63,7 +63,7 @@ def strip_tags(html, whitelist=['a', 'i', 'b', 'em', 'strong'], remove_search_li
     """Strip all HTML tags except for a list of whitelisted tags."""
     # Adapted from http://stackoverflow.com/a/16144379/120898
     if not html:
-        return ''
+        return
 
     # Remove newlines first because they conflict with check for malformed HTML
     soup = BeautifulSoup(html.replace('\n', ''))
@@ -93,26 +93,30 @@ def strip_tags(html, whitelist=['a', 'i', 'b', 'em', 'strong'], remove_search_li
 
 def clean_news(cell):
     if not cell:
-        return ''
+        return
     soup = BeautifulSoup(cell)
     actual_date = soup.select('div')[0].get_text()
     return actual_date.strip()
 
 def clean_delim(cell, delim=r'\.\s*'):
     if not cell:
-        return ''
+        return
     separated = "\n".join(re.split(delim, strip_tags(cell)))
     return separated.strip()
 
 def clean_events(cell):
     if not cell:
-        return ''
+        return
     events = strip_tags(cell, remove_search_link=True)
-    return events
+
+    if events == '':
+        return
+    else:
+        return events
 
 def clean_type(cell):
     if not cell:
-        return ''
+        return
     org_type = strip_tags(cell).split(':')
     return org_type[0]
 
@@ -363,7 +367,6 @@ def clean_rows():
         # Insert into subjects table and orgs_subjects table
         # logger.info("Subjects: " + str(clean_subject(row.subjects)))
         # TODO: languages
-
         cleaned = CleanOrg(row.id_org, row.org_name_t, row.org_acronym_t,
                            row.org_founded_t, row.org_city_hq_t,
                            row.org_country_hq_t, row.org_type_i_t,
@@ -382,8 +385,6 @@ def clean_rows():
                            clean_news(row.last_news_received), None)
         subjects = clean_subject(row.subjects)
         clean_org_to_db(cleaned, subjects)
-
-        # TODO: Make sure all nones are actually none or NA, not just ""
     # show(output)
 
 def clean_org_to_db(clean, subjects):
