@@ -291,27 +291,31 @@ def clean_rows():
     # All the rows to parse (organizations collected with `requests` and
     # manually) are in the view `clean_me`, created with this command:
     #
-    # CREATE VIEW clean_me AS
-    #   SELECT * FROM organizations_raw_requests
-    #   UNION ALL
-    #   SELECT fk_org, org_name, type_i_classification, contact_details, members,
-    #     last_news_received, events, structure, history, activities, financing,
-    #     relations_with_inter_governmental_organizations, consultative_status,
-    #     aims, publications, relations_with_non_governmental_organizations,
-    #     staff, subjects, type_ii_classification, languages, information_services
-    #   FROM organizations_raw
+    # CREATE VIEW clean_me_full AS
+    #   SELECT * FROM (
+    #     SELECT * FROM organizations_raw_requests
+    #     UNION ALL
+    #     SELECT fk_org, org_name, type_i_classification, contact_details, members,
+    #       last_news_received, events, structure, history, activities, financing,
+    #       relations_with_inter_governmental_organizations, consultative_status,
+    #       aims, publications, relations_with_non_governmental_organizations,
+    #       staff, subjects, type_ii_classification, languages, information_services
+    #     FROM organizations_raw) temp_table
+    #   INNER JOIN organizations ON temp_table.fk_org = organizations.id_org
     #
     # The column names for the second table have to be specified manually,
     # or else the two tables won't be stacked properly
 
     # Get existing column names and create named tuple row factory
     db = DB()
-    colnames_raw = db.c.execute("PRAGMA table_info(clean_me);").fetchall()
+    colnames_raw = db.c.execute("PRAGMA table_info(clean_me_full);").fetchall()
     colnames = [col[1] for col in colnames_raw]
     OrgRawRow = namedtuple("OrgRawRow", colnames)
+    CleanOrg = namedtuple("CleanOrg", ['id_org', 'org_name',
+                                       'org_acronym', 'org_url_id'])
     db.add_factory(factory=OrgRawRow)
 
-    results = db.c.execute("SELECT * FROM clean_me")
+    results = db.c.execute("SELECT * FROM clean_me_full")
 
     rows = results.fetchall()
 
@@ -344,14 +348,50 @@ def clean_rows():
         # TODO: relations_with_inter_governmental_organizations
         # TODO: relations_With_non_governmental_organization
         # TODO: consultative_status
+
         # TODO: subjects
-        logger.info("Subjects: " + str(clean_subject(row.subjects)))
-        # clean_subject(row.subjects)
-        # clean_subject(asdf)
+        # Insert into subjects table and orgs_subjects table
+        # logger.info("Subjects: " + str(clean_subject(row.subjects)))
         # TODO: languages
+
+        cleaned = CleanOrg(row.id_org, row.org_name_t, row.org_acronym_t, row.org_url_id)
+        subjects = clean_subject(row.subjects)
+        clean_org_to_db(cleaned, subjects)
 
         # TODO: Make sure all nones are actually none or NA, not just ""
     # show(output)
+
+def clean_org_to_db(clean, subjects):
+    db = DB()
+
+    # Insert organization
+    db.c.execute("""INSERT OR IGNORE INTO organizations_final
+                 {0} VALUES ({1})"""
+                 .format(clean._fields, ', '.join('?' for _ in clean._fields)),
+                 (clean))
+
+    # Insert subjects
+    if subjects:
+        # Insert subjects indivudally since there's no way to use executemany
+        # *and* get the resultant row IDs *and* get the IDs of the ignored rows
+        subject_ids = []
+        for subject in subjects:
+            db.c.execute("""INSERT OR IGNORE INTO subjects
+                         (subject_name, subject_parent)
+                         VALUES (?, ?)""",
+                         (subject.level_2, subject.level_1))
+            db.c.execute("""SELECT id_subject FROM subjects WHERE
+                         subject_name = ? AND subject_parent = ?""",
+                         (subject.level_2, subject.level_1))
+            subject_ids.append(db.c.fetchall()[0][0])
+
+        # Insert organization and subject IDs into the junction table
+        db.c.executemany("""INSERT OR IGNORE INTO orgs_subjects
+                      (fk_org, fk_subject)
+                      VALUES (?, ?)""",
+                      ([(clean.id_org, sub) for sub in subject_ids]))
+
+    db.conn.commit()
 
 if __name__ == '__main__':
     clean_rows()
