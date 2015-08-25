@@ -311,16 +311,26 @@ def clean_rows():
     colnames_raw = db.c.execute("PRAGMA table_info(clean_me_full);").fetchall()
     colnames = [col[1] for col in colnames_raw]
     OrgRawRow = namedtuple("OrgRawRow", colnames)
-    CleanOrg = namedtuple("CleanOrg", ['id_org', 'org_name',
-                                       'org_acronym', 'org_url_id'])
     db.add_factory(factory=OrgRawRow)
 
     results = db.c.execute("SELECT * FROM clean_me_full")
 
     rows = results.fetchall()
 
+    CleanOrg = namedtuple("CleanOrg", ['id_org', 'org_name', 'acronym',
+                                       'founded', 'city_hq', 'country_hq',
+                                       'type_i_dir', 'type_ii_dir',
+                                       'type_iii_dir', 'type_i', 'type_ii',
+                                       'uia_id', 'url_id', 'subject_dir',
+                                       'history', 'aims', 'events', 'activities',
+                                       'structure', 'staff', 'financing',
+                                       'languages', 'consultative_status',
+                                       'relations_igos', 'relations_ngos',
+                                       'publications', 'information_services',
+                                       'members', 'last_news', 'contact'])
+
     output = ''
-    for row in rows[0:100]:
+    for row in rows[0:5]:
         logger.info("{0.fk_org}: {0.org_name}".format(row))
         # logger.info("Last news received: " + clean_news(row.last_news_received))
         # logger.info("Structure: " + clean_delim(row.structure))
@@ -354,7 +364,22 @@ def clean_rows():
         # logger.info("Subjects: " + str(clean_subject(row.subjects)))
         # TODO: languages
 
-        cleaned = CleanOrg(row.id_org, row.org_name_t, row.org_acronym_t, row.org_url_id)
+        cleaned = CleanOrg(row.id_org, row.org_name_t, row.org_acronym_t,
+                           row.org_founded_t, row.org_city_hq_t,
+                           row.org_country_hq_t, row.org_type_i_t,
+                           row.org_type_ii_t, row.org_type_iii_t,
+                           clean_type(row.type_i_classification),
+                           clean_type(row.type_ii_classification),
+                           row.org_uia_id_t, row.org_url_id,
+                           row.org_subject_t,
+                           strip_tags(row.history), strip_tags(row.aims),
+                           clean_events(row.events), strip_tags(row.activities),
+                           clean_delim(row.structure), strip_tags(row.staff),
+                           strip_tags(row.financing), None,
+                           None, None,
+                           None, clean_delim(row.publications),
+                           strip_tags(row.information_services), None,
+                           clean_news(row.last_news_received), None)
         subjects = clean_subject(row.subjects)
         clean_org_to_db(cleaned, subjects)
 
