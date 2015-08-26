@@ -144,6 +144,12 @@ def clean_contact(text):
 
     details = defaultdict(list)
 
+    Contact = namedtuple('Contact', ['contact', 'telephone', 'fax', 'email'])
+    Details = namedtuple('Details', ['contacts', 'url'])
+
+    contacts = []
+    urls = []
+
     for section in text.split('\n'):
         lines = [strip_tags(line, whitelist=[])
                  for line in section.split('<br/>')]
@@ -152,26 +158,42 @@ def clean_contact(text):
         if len(lines) == 0:
             break
 
+        # Initialize variables
+        telephone = fax = email = url = None
+
         # lines[:] makes a copy of lines so that elements can be removed in place
         for line in lines[:]:
             if line.startswith('Tel:'):
-                details['telephone'].append(line.replace('Tel:', '').strip())
+                telephone = line.replace('Tel:', '').strip()
                 lines.remove(line)
             elif line.startswith('Fax:'):
-                details['fax'].append(line.replace('Fax:', '').strip())
+                fax = line.replace('Fax:', '').strip()
                 lines.remove(line)
             elif line.startswith('Email:'):
-                details['email'].append(line.replace('Email:', '')
-                                        .replace(' (at) ', '@').strip())
+                email = line.replace('Email:', '').replace(' (at) ', '@').strip()
                 lines.remove(line)
             elif line.startswith('URL:'):
-                details['url'].append(line.replace('URL:', '').strip())
+                url = line.replace('URL:', '').strip()
+                lines.remove(line)
+            # Sometimes there's a standalone URL without the 'URL:' prefix
+            elif line.startswith('http'):
+                urls.append(line.strip())
                 lines.remove(line)
 
-        if len(lines) > 0:
-            details['contact'].append("\n".join(lines))
+        if url and len(lines) == 0:
+            urls.append(url)
+        elif len(lines) > 0:
+            contact = Contact('\n'.join(lines), telephone, fax, email)
+            contacts.append(contact)
 
-    return details
+    if len(urls) > 0:
+        # Just use a comma separated string, since it's rare and I can split it
+        # in R later
+        url = ', '.join([url.replace('.proxy.lib.duke.edu', '') for url in urls])
+    else:
+        url = None
+
+    return Details(contacts, url)
 
 def clean_list(text):
     # Each field is formatted like this:
@@ -274,7 +296,7 @@ def clean_subject(cell):
     #     </ul>
     # </ul>
     if not cell:
-        return ''
+        return
     soup = BeautifulSoup(cell)
     ul = soup.select('ul')
 
@@ -322,7 +344,7 @@ def clean_rows():
     rows = results.fetchall()
 
     CleanOrg = namedtuple("CleanOrg", ['id_org', 'org_name', 'acronym',
-                                       'founded', 'city_hq', 'country_hq',
+                                       'org_url', 'founded', 'city_hq', 'country_hq',
                                        'type_i_dir', 'type_ii_dir',
                                        'type_iii_dir', 'type_i', 'type_ii',
                                        'uia_id', 'url_id', 'subject_dir',
@@ -331,44 +353,36 @@ def clean_rows():
                                        'languages', 'consultative_status',
                                        'relations_igos', 'relations_ngos',
                                        'publications', 'information_services',
-                                       'members', 'last_news', 'contact'])
+                                       'members', 'last_news'])
 
-    output = ''
-    for row in rows[0:5]:
+    # output = ''
+    for row in rows:
         logger.info("{0.fk_org}: {0.org_name}".format(row))
-        # logger.info("Last news received: " + clean_news(row.last_news_received))
-        # logger.info("Structure: " + clean_delim(row.structure))
-        # logger.info("History: " + strip_tags(row.history))
-        # logger.info("Financing: " + strip_tags(row.financing))
-        # logger.info("Aims: " + strip_tags(row.aims))
-        # logger.info("Staff: " + strip_tags(row.staff))
-        # logger.info("Information services: " + strip_tags(row.information_services))
-        # logger.info("Publications: " + clean_delim(row.publications))
-        # logger.info("Activities: " + strip_tags(row.activities))
-        # logger.info("Events: " + clean_events(row.events))
-        # logger.info(clean_type(row.type_i_classification))
-        # logger.info(clean_type(row.type_ii_classification))
 
-        # TODO: Unpack this into multiple columns somehow
-        # logger.info(clean_contact(row.contact_details))
-
-        # Relational tables for these:
         # logger.info(clean_list(row.members))  # TODO: Finish members
         # output += '<h2>{0}: {1}</h2>'.format(i, row.org_name)
-        # output += str(row.subjects)
+        # output += str(row.contact_details)
+        # output += '<pre><code>'+str(clean_contact(row.contact_details))+'</pre></code>'
         # output += '<hr>'
         # show(clean_list(row.members))
+
         # TODO: members
         # TODO: relations_with_inter_governmental_organizations
         # TODO: relations_With_non_governmental_organization
         # TODO: consultative_status
-
-        # TODO: subjects
-        # Insert into subjects table and orgs_subjects table
-        # logger.info("Subjects: " + str(clean_subject(row.subjects)))
         # TODO: languages
+
+        subjects = clean_subject(row.subjects)
+        contact_details = clean_contact(row.contact_details)
+
+        if contact_details:
+            org_url = contact_details.url
+            contacts = contact_details.contacts
+        else:
+            org_url = contacts = None
+
         cleaned = CleanOrg(row.id_org, row.org_name_t, row.org_acronym_t,
-                           row.org_founded_t, row.org_city_hq_t,
+                           org_url, row.org_founded_t, row.org_city_hq_t,
                            row.org_country_hq_t, row.org_type_i_t,
                            row.org_type_ii_t, row.org_type_iii_t,
                            clean_type(row.type_i_classification),
@@ -382,12 +396,12 @@ def clean_rows():
                            None, None,
                            None, clean_delim(row.publications),
                            strip_tags(row.information_services), None,
-                           clean_news(row.last_news_received), None)
-        subjects = clean_subject(row.subjects)
-        clean_org_to_db(cleaned, subjects)
+                           clean_news(row.last_news_received))
+
+        clean_org_to_db(cleaned, subjects, contacts)
     # show(output)
 
-def clean_org_to_db(clean, subjects):
+def clean_org_to_db(clean, subjects, contacts):
     db = DB()
 
     # Insert organization
@@ -416,6 +430,24 @@ def clean_org_to_db(clean, subjects):
                       (fk_org, fk_subject)
                       VALUES (?, ?)""",
                       ([(clean.id_org, sub) for sub in subject_ids]))
+
+    # Insert contacts
+    if contacts:
+        # Insert contacts individually again, since executemany doesn't play
+        # well with auto-incrementing IDs
+        contact_ids = []
+        for contact in contacts:
+            db.c.execute("""INSERT INTO contacts
+                         (contact_details, contact_phone,
+                          contact_fax, contact_email)
+                         VALUES (?, ?, ?, ?)""", (contact))
+            contact_ids.append(db.c.lastrowid)
+
+        # Insert organization and contact IDs into the junction table
+        db.c.executemany("""INSERT OR IGNORE INTO orgs_contacts
+                         (fk_org, fk_contact)
+                         VALUES (?, ?)""",
+                         ([(clean.id_org, con) for con in contact_ids]))
 
     db.conn.commit()
 

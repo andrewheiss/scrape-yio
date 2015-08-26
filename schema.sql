@@ -24,6 +24,7 @@ CREATE TABLE organizations_final (
   id_org integer PRIMARY KEY,
   org_name text NOT NULL,
   acronym text,
+  org_url text,
   founded text,
   city_hq text,
   country_hq text,
@@ -49,8 +50,7 @@ CREATE TABLE organizations_final (
   publications text,
   information_services text,
   members text,
-  last_news text,
-  contact text
+  last_news text
 );
 CREATE UNIQUE INDEX org_url_index_final ON organizations_final (url_id);
 
@@ -67,6 +67,22 @@ CREATE TABLE orgs_subjects (
   FOREIGN KEY (fk_org) REFERENCES organizations (id_org) ON DELETE CASCADE,
   FOREIGN KEY (fk_subject) REFERENCES subjects (id_subject) ON DELETE CASCADE,
   PRIMARY KEY(fk_org, fk_subject)
+);
+
+CREATE TABLE contacts (
+  id_contact integer PRIMARY KEY,
+  contact_details text,
+  contact_phone text,
+  contact_fax text,
+  contact_email text
+);
+
+CREATE TABLE orgs_contacts (
+  fk_org integer NOT NULL,
+  fk_contact integer NOT NULL,
+  FOREIGN KEY (fk_org) REFERENCES organizations (id_org) ON DELETE CASCADE,
+  FOREIGN KEY (fk_contact) REFERENCES contacts (id_contact) ON DELETE CASCADE,
+  PRIMARY KEY(fk_org, fk_contact)
 );
 
 
