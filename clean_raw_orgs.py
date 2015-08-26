@@ -449,7 +449,7 @@ def clean_org_to_db(clean, subjects, contacts):
                          VALUES (?, ?)""",
                          ([(clean.id_org, con) for con in contact_ids]))
 
-    db.conn.commit()
+    # db.conn.commit()
 
 if __name__ == '__main__':
     clean_rows()
