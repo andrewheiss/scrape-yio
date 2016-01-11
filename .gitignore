@@ -17,3 +17,6 @@ data/*
 
 # Binary files
 bin/*
+
+# R stuff
+.Rhistory
